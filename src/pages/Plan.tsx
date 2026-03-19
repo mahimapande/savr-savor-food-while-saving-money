@@ -95,10 +95,9 @@ const Plan = () => {
                 </p>
                 <ul className="space-y-1 text-sm text-foreground">
                   {section.items.map((item) => (
-                    <li
+                    <label
                       key={item}
                       className="flex cursor-pointer items-center gap-2"
-                      onClick={() => toggleItem(item)}
                     >
                       <Checkbox
                         checked={checkedItems.has(item)}
@@ -108,7 +107,7 @@ const Plan = () => {
                       <span className={checkedItems.has(item) ? "line-through text-muted-foreground" : ""}>
                         {item}
                       </span>
-                    </li>
+                    </label>
                   ))}
                 </ul>
               </div>
