@@ -9,6 +9,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 const Plan = () => {
   const navigate = useNavigate();
   const plan = useMemo(() => generatePlan(), []);
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+
+  const toggleItem = (item: string) => {
+    setCheckedItems((prev) => {
+      const next = new Set(prev);
+      next.has(item) ? next.delete(item) : next.add(item);
+      return next;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
