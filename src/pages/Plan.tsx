@@ -1,13 +1,23 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { generatePlan } from "@/data/mockData";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const Plan = () => {
   const navigate = useNavigate();
   const plan = useMemo(() => generatePlan(), []);
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+
+  const toggleItem = (item: string) => {
+    setCheckedItems((prev) => {
+      const next = new Set(prev);
+      next.has(item) ? next.delete(item) : next.add(item);
+      return next;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -83,11 +93,21 @@ const Plan = () => {
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
                   {section.label}
                 </p>
-                <ul className="space-y-0.5 text-sm text-foreground">
+                <ul className="space-y-1 text-sm text-foreground">
                   {section.items.map((item) => (
-                    <li key={item} className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                      {item}
+                    <li
+                      key={item}
+                      className="flex cursor-pointer items-center gap-2"
+                      onClick={() => toggleItem(item)}
+                    >
+                      <Checkbox
+                        checked={checkedItems.has(item)}
+                        onCheckedChange={() => toggleItem(item)}
+                        className="shrink-0"
+                      />
+                      <span className={checkedItems.has(item) ? "line-through text-muted-foreground" : ""}>
+                        {item}
+                      </span>
                     </li>
                   ))}
                 </ul>
