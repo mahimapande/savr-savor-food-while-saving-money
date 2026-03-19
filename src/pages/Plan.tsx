@@ -4,6 +4,7 @@ import { generatePlan } from "@/data/mockData";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const Plan = () => {
   const navigate = useNavigate();
