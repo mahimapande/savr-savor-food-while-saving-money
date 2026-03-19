@@ -93,11 +93,21 @@ const Plan = () => {
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
                   {section.label}
                 </p>
-                <ul className="space-y-0.5 text-sm text-foreground">
+                <ul className="space-y-1 text-sm text-foreground">
                   {section.items.map((item) => (
-                    <li key={item} className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                      {item}
+                    <li
+                      key={item}
+                      className="flex cursor-pointer items-center gap-2"
+                      onClick={() => toggleItem(item)}
+                    >
+                      <Checkbox
+                        checked={checkedItems.has(item)}
+                        onCheckedChange={() => toggleItem(item)}
+                        className="shrink-0"
+                      />
+                      <span className={checkedItems.has(item) ? "line-through text-muted-foreground" : ""}>
+                        {item}
+                      </span>
                     </li>
                   ))}
                 </ul>
