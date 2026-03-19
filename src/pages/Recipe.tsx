@@ -120,12 +120,12 @@ const Recipe = () => {
 
       {/* Bottom bar */}
       <div className="fixed bottom-0 left-0 right-0 border-t bg-card p-4">
-        <div className="mx-auto flex max-w-lg gap-3">
-          <Button variant="outline" className="flex-1" onClick={() => navigate("/plan")}>
+        <div className="mx-auto flex max-w-lg flex-col gap-2 sm:flex-row sm:gap-3">
+          <Button variant="outline" className="w-full sm:flex-1" onClick={() => navigate("/plan")}>
             Back to week
           </Button>
           <Button
-            className="flex-1"
+            className="w-full sm:flex-1"
             variant={cooked ? "secondary" : "default"}
             onClick={() => setCooked(!cooked)}
           >

@@ -61,7 +61,7 @@ const Plan = () => {
         </div>
 
         {/* Shopping List */}
-        <Card className="p-4">
+        <Card className="p-4 max-h-[60vh] overflow-hidden flex flex-col">
           <div className="mb-3 flex items-center gap-2">
             <ShoppingCart className="h-5 w-5 text-primary" />
             <h2 className="font-semibold text-foreground">
@@ -71,27 +71,29 @@ const Plan = () => {
               Est. {plan.shoppingList.estimatedCost}
             </Badge>
           </div>
-          {(
-            [
-              { label: "Produce", items: plan.shoppingList.produce },
-              { label: "Pantry", items: plan.shoppingList.pantry },
-              { label: "Dairy", items: plan.shoppingList.dairy },
-            ] as const
-          ).map((section) => (
-            <div key={section.label} className="mb-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
-                {section.label}
-              </p>
-              <ul className="space-y-0.5 text-sm text-foreground">
-                {section.items.map((item) => (
-                  <li key={item} className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <div className="overflow-y-auto flex-1 -mr-2 pr-2">
+            {(
+              [
+                { label: "Produce", items: plan.shoppingList.produce },
+                { label: "Pantry", items: plan.shoppingList.pantry },
+                { label: "Dairy", items: plan.shoppingList.dairy },
+              ] as const
+            ).map((section) => (
+              <div key={section.label} className="mb-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
+                  {section.label}
+                </p>
+                <ul className="space-y-0.5 text-sm text-foreground">
+                  {section.items.map((item) => (
+                    <li key={item} className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </Card>
       </div>
     </div>
