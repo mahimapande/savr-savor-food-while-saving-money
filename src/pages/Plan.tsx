@@ -55,7 +55,7 @@ const Plan = () => {
             <Card
               key={meal.id}
               className="flex cursor-pointer items-center gap-3 p-4 transition-shadow hover:shadow-md active:scale-[0.99]"
-              onClick={() => navigate(`/recipe/${meal.id}`)}
+              onClick={() => navigate(`/recipe/${meal.id}`, { state: formInputs })}
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary font-semibold text-sm text-secondary-foreground">
                 {meal.day}
