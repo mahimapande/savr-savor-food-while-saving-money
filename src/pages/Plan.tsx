@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { generatePlan } from "@/data/mockData";
+import { useNavigate, useLocation } from "react-router-dom";
+import { generatePlan, FormInputs } from "@/data/mockData";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight } from "lucide-react";
@@ -8,8 +8,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 const Plan = () => {
   const navigate = useNavigate();
-  const plan = useMemo(() => generatePlan(), []);
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const location = useLocation();
+  const formInputs = location.state as FormInputs | undefined;
+  const plan = useMemo(() => generatePlan(formInputs), [formInputs]);
 
   const toggleItem = (item: string) => {
     setCheckedItems((prev) => {
