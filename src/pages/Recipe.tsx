@@ -12,8 +12,14 @@ const Recipe = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const formInputs = location.state as FormInputs | undefined;
-  const plan = useMemo(() => generatePlan(formInputs), [formInputs]);
-  const meal = plan.meals.find((m) => m.id === id);
+  const plan = useMemo(() => {
+    const stored = sessionStorage.getItem("savr-plan");
+    if (stored) {
+      try { return JSON.parse(stored); } catch {}
+    }
+    return generatePlan(formInputs);
+  }, [formInputs]);
+  const meal = plan.meals.find((m: any) => m.id === id);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
   const [cooked, setCooked] = useState(false);
 

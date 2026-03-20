@@ -10,7 +10,11 @@ const Plan = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const formInputs = location.state as FormInputs | undefined;
-  const plan = useMemo(() => generatePlan(formInputs), [formInputs]);
+  const plan = useMemo(() => {
+    const generated = generatePlan(formInputs);
+    sessionStorage.setItem("savr-plan", JSON.stringify(generated));
+    return generated;
+  }, [formInputs]);
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
 
   const toggleItem = (item: string) => {
