@@ -50,7 +50,9 @@ const Index = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/plan");
+    navigate("/plan", {
+      state: { budget, meals, dietary, cuisines, pantryItems, preference },
+    });
   };
 
   return (

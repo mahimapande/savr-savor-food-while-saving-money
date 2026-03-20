@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { generatePlan } from "@/data/mockData";
+import { useNavigate, useLocation } from "react-router-dom";
+import { generatePlan, FormInputs } from "@/data/mockData";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight } from "lucide-react";
@@ -8,7 +8,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 const Plan = () => {
   const navigate = useNavigate();
-  const plan = useMemo(() => generatePlan(), []);
+  const location = useLocation();
+  const formInputs = location.state as FormInputs | undefined;
+  const plan = useMemo(() => {
+    const generated = generatePlan(formInputs);
+    sessionStorage.setItem("savr-plan", JSON.stringify(generated));
+    return generated;
+  }, [formInputs]);
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
 
   const toggleItem = (item: string) => {
@@ -53,7 +59,7 @@ const Plan = () => {
             <Card
               key={meal.id}
               className="flex cursor-pointer items-center gap-3 p-4 transition-shadow hover:shadow-md active:scale-[0.99]"
-              onClick={() => navigate(`/recipe/${meal.id}`)}
+              onClick={() => navigate(`/recipe/${meal.id}`, { state: formInputs })}
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary font-semibold text-sm text-secondary-foreground">
                 {meal.day}
