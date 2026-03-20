@@ -11,6 +11,7 @@ const Plan = () => {
   const location = useLocation();
   const formInputs = location.state as FormInputs | undefined;
   const plan = useMemo(() => generatePlan(formInputs), [formInputs]);
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
 
   const toggleItem = (item: string) => {
     setCheckedItems((prev) => {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { generatePlan } from "@/data/mockData";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { generatePlan, FormInputs } from "@/data/mockData";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,7 +10,9 @@ import { ArrowLeft, Check, Leaf, RefreshCw, DollarSign } from "lucide-react";
 const Recipe = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const plan = useMemo(() => generatePlan(), []);
+  const location = useLocation();
+  const formInputs = location.state as FormInputs | undefined;
+  const plan = useMemo(() => generatePlan(formInputs), [formInputs]);
   const meal = plan.meals.find((m) => m.id === id);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
   const [cooked, setCooked] = useState(false);
