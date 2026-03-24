@@ -26,6 +26,7 @@ export interface PlanData {
   };
   meals: Meal[];
   shoppingList: ShoppingList;
+  pantryItems: ShoppingListItem[]; // items excluded because user already has them
 }
 
 export interface ShoppingListItem {
@@ -372,9 +373,8 @@ const PLANT_BASED_KEYWORDS = ["tofu", "tempeh", "coconut milk", "oat milk", "alm
 const DRY_GOODS_KEYWORDS = ["rice", "pasta", "noodle", "spaghetti", "penne", "beans", "chickpeas", "lentils", "flour", "sugar", "tortilla", "flatbread", "pita", "naan", "broth", "peanut butter", "hummus", "olives", "peas", "canned"];
 const SPICE_KEYWORDS = ["oil", "sauce", "seasoning", "spice", "cumin", "chili powder", "italian seasoning", "ginger", "balsamic", "sesame oil", "hot sauce", "soy sauce", "vinegar"];
 
-function categorizeItem(name: string): keyof Omit<ShoppingList, "totalItems" | "estimatedCost"> {
+export function categorizeItem(name: string): keyof Omit<ShoppingList, "totalItems" | "estimatedCost"> {
   const lower = name.toLowerCase();
-  // Plant-based must be checked before dairy (coconut milk != dairy milk)
   if (PLANT_BASED_KEYWORDS.some((k) => lower.includes(k))) return "plantBased";
   if (DAIRY_KEYWORDS.some((k) => lower.includes(k))) return "dairy";
   if (SPICE_KEYWORDS.some((k) => lower.includes(k))) return "spicesCondiments";
@@ -437,7 +437,10 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     };
   });
 
-  // Build shopping list excluding user pantry items
+  // Build ALL unique items, then split into shopping vs pantry
+  const allUniqueItems = new Map<string, ShoppingListItem>();
+  const pantryItemsList: ShoppingListItem[] = [];
+
   const lists: Record<string, Map<string, ShoppingListItem>> = {
     produce: new Map(),
     dairy: new Map(),
@@ -448,13 +451,16 @@ export function generatePlan(inputs?: FormInputs): PlanData {
 
   for (const meal of meals) {
     for (const ing of meal.ingredients) {
-      const lower = ing.name.toLowerCase();
-      // Skip if user already has this pantry item
-      const isUserPantry = [...userPantrySet].some((p) => lower.includes(p));
-      if (isUserPantry) continue;
+      if (allUniqueItems.has(ing.name)) continue;
+      allUniqueItems.set(ing.name, { name: ing.name, cost: ing.cost });
 
-      const category = categorizeItem(ing.name);
-      if (!lists[category].has(ing.name)) {
+      const lower = ing.name.toLowerCase();
+      const isUserPantry = [...userPantrySet].some((p) => lower.includes(p));
+
+      if (isUserPantry) {
+        pantryItemsList.push({ name: ing.name, cost: ing.cost });
+      } else {
+        const category = categorizeItem(ing.name);
         lists[category].set(ing.name, { name: ing.name, cost: ing.cost });
       }
     }
@@ -465,8 +471,8 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const plantBased = [...lists.plantBased.values()];
   const dryGoods = [...lists.dryGoods.values()];
   const spicesCondiments = [...lists.spicesCondiments.values()];
-  const allItems = [...produce, ...dairy, ...plantBased, ...dryGoods, ...spicesCondiments];
-  const totalCost = allItems.reduce((sum, item) => sum + item.cost, 0);
+  const allShoppingItems = [...produce, ...dairy, ...plantBased, ...dryGoods, ...spicesCondiments];
+  const totalCost = allShoppingItems.reduce((sum, item) => sum + item.cost, 0);
 
   const lowCost = Math.floor(totalCost * 0.9);
   const highCost = Math.ceil(totalCost * 1.1);
@@ -484,8 +490,9 @@ export function generatePlan(inputs?: FormInputs): PlanData {
       plantBased,
       dryGoods,
       spicesCondiments,
-      totalItems: allItems.length,
+      totalItems: allShoppingItems.length,
       estimatedCost: `$${Math.round(totalCost)}`,
     },
+    pantryItems: pantryItemsList,
   };
 }
