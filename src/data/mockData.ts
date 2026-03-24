@@ -16,12 +16,15 @@ export interface Meal {
   estimatedCost: string;
   ingredients: Ingredient[];
   steps: string[];
+  cooked?: boolean;
 }
 
 export interface PlanData {
   metrics: {
     dinners: number;
     costRange: string;
+    costLow: number;
+    costHigh: number;
     reuseScore: string;
   };
   meals: Meal[];
@@ -339,7 +342,312 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
   },
 ];
 
+const PESCATARIAN_POOL: Omit<Meal, "day">[] = [
+  {
+    id: "grilled-salmon-veggies",
+    name: "Grilled Salmon + Veggies",
+    duration: "25 min",
+    servings: 2,
+    tags: ["25 mins", "2 servings", "Pescatarian"],
+    reuseBadges: [],
+    estimatedCost: "$8.40",
+    ingredients: [
+      { name: "2 salmon fillets (6 oz each)", cost: 6.99 },
+      { name: "1 medium zucchini", cost: 0.80 },
+      { name: "1 medium bell pepper", cost: 1.00 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
+      { name: "1/2 lemon", cost: 0.40 },
+      { name: "1 tsp garlic powder", cost: 0.08 },
+    ],
+    steps: [
+      "Season salmon with lemon, garlic powder, and salt",
+      "Toss sliced veggies with olive oil",
+      "Grill salmon 4-5 min per side and sear veggies",
+      "Serve salmon with charred vegetables",
+    ],
+  },
+  {
+    id: "tuna-rice-bowl",
+    name: "Tuna Rice Bowl",
+    duration: "20 min",
+    servings: 2,
+    tags: ["20 mins", "2 servings", "Pescatarian"],
+    reuseBadges: [],
+    estimatedCost: "$5.20",
+    ingredients: [
+      { name: "2 cans tuna in water (5 oz)", pantry: true, cost: 2.20 },
+      { name: "1 cup jasmine rice", pantry: true, cost: 0.40 },
+      { name: "1 medium cucumber", cost: 0.60 },
+      { name: "1 medium carrot", cost: 0.30 },
+      { name: "2 tbsp soy sauce", cost: 0.15 },
+      { name: "1 tsp sesame oil", cost: 0.10 },
+      { name: "2 green onions", cost: 0.20 },
+    ],
+    steps: [
+      "Cook rice and let cool slightly",
+      "Drain tuna and mix with soy sauce and sesame oil",
+      "Slice cucumber and carrot thinly",
+      "Assemble bowls and top with green onions",
+    ],
+  },
+  {
+    id: "shrimp-stir-fry",
+    name: "Shrimp Stir-fry",
+    duration: "20 min",
+    servings: 2,
+    tags: ["20 mins", "2 servings", "Pescatarian"],
+    reuseBadges: [],
+    estimatedCost: "$7.10",
+    ingredients: [
+      { name: "12 oz raw shrimp, peeled", cost: 5.49 },
+      { name: "1 cup broccoli florets (6 oz)", cost: 1.00 },
+      { name: "1 medium bell pepper", cost: 1.00 },
+      { name: "2 cloves garlic", cost: 0.20 },
+      { name: "2 tbsp soy sauce", cost: 0.15 },
+      { name: "1 tsp sesame oil", cost: 0.10 },
+    ],
+    steps: [
+      "Pat shrimp dry and season lightly",
+      "Stir-fry shrimp on high heat for 2-3 min",
+      "Add vegetables, garlic, soy sauce, and sesame oil",
+      "Cook until crisp-tender and serve",
+    ],
+  },
+  {
+    id: "leftover-salmon-salad",
+    name: "Leftover Salmon Salad",
+    duration: "15 min",
+    servings: 2,
+    tags: ["15 mins", "2 servings", "Pescatarian"],
+    reuseBadges: [],
+    estimatedCost: "$4.80",
+    ingredients: [
+      { name: "6 oz cooked salmon leftovers", pantry: true, cost: 0.00 },
+      { name: "4 cups mixed greens", cost: 2.49 },
+      { name: "1 medium cucumber", cost: 0.60 },
+      { name: "1/2 lemon", cost: 0.40 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
+      { name: "1 tsp Dijon mustard", cost: 0.20 },
+    ],
+    steps: [
+      "Flake leftover salmon into bite-size pieces",
+      "Whisk olive oil, lemon juice, and mustard",
+      "Toss greens and cucumber with dressing",
+      "Top with salmon and serve immediately",
+    ],
+  },
+  {
+    id: "cod-tacos",
+    name: "Cod Tacos",
+    duration: "25 min",
+    servings: 2,
+    tags: ["25 mins", "2 servings", "Pescatarian"],
+    reuseBadges: [],
+    estimatedCost: "$6.90",
+    ingredients: [
+      { name: "10 oz cod fillet", cost: 4.99 },
+      { name: "6 small corn tortillas", pantry: true, cost: 1.29 },
+      { name: "1 cup shredded green cabbage", cost: 0.50 },
+      { name: "1 lime", cost: 0.25 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
+      { name: "1 tsp chili powder", cost: 0.08 },
+    ],
+    steps: [
+      "Season cod with chili powder and salt",
+      "Pan-sear cod in olive oil 3-4 min per side",
+      "Warm tortillas and prep cabbage slaw with lime",
+      "Build tacos with fish and slaw",
+    ],
+  },
+  {
+    id: "garlic-shrimp-pasta",
+    name: "Garlic Shrimp Pasta",
+    duration: "25 min",
+    servings: 2,
+    tags: ["25 mins", "2 servings", "Pescatarian"],
+    reuseBadges: [],
+    estimatedCost: "$7.40",
+    ingredients: [
+      { name: "8 oz spaghetti", pantry: true, cost: 0.75 },
+      { name: "10 oz raw shrimp, peeled", cost: 4.99 },
+      { name: "3 cloves garlic", cost: 0.30 },
+      { name: "1/2 lemon", cost: 0.40 },
+      { name: "2 tbsp olive oil", cost: 0.30 },
+      { name: "1 bunch fresh parsley", cost: 0.79 },
+    ],
+    steps: [
+      "Cook spaghetti until al dente",
+      "Sauté shrimp and garlic in olive oil",
+      "Add pasta, lemon juice, and parsley",
+      "Toss and serve warm",
+    ],
+  },
+  {
+    id: "sardine-toast-plate",
+    name: "Sardine Tomato Toast Plate",
+    duration: "10 min",
+    servings: 2,
+    tags: ["10 mins", "2 servings", "Pescatarian"],
+    reuseBadges: [],
+    estimatedCost: "$4.90",
+    ingredients: [
+      { name: "2 cans sardines in olive oil (3.75 oz)", cost: 2.80 },
+      { name: "4 slices whole-grain bread", pantry: true, cost: 0.80 },
+      { name: "2 medium tomatoes", cost: 1.00 },
+      { name: "1 tbsp capers", cost: 0.20 },
+      { name: "1/2 lemon", cost: 0.40 },
+    ],
+    steps: [
+      "Toast bread slices until crisp",
+      "Slice tomatoes and drain sardines",
+      "Top toast with tomatoes, sardines, and capers",
+      "Finish with lemon juice",
+    ],
+  },
+];
+
+const VEGAN_EXTRA_POOL: Omit<Meal, "day">[] = [
+  {
+    id: "lentil-coconut-stew",
+    name: "Lentil Coconut Stew",
+    duration: "35 min",
+    servings: 2,
+    tags: ["35 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$4.60",
+    ingredients: [
+      { name: "1 cup dried red lentils", pantry: true, cost: 0.90 },
+      { name: "1 can coconut milk (13.5 oz)", cost: 1.79 },
+      { name: "1 can diced tomatoes (14.5 oz)", pantry: true, cost: 0.99 },
+      { name: "1 medium yellow onion", cost: 0.50 },
+      { name: "2 cloves garlic", cost: 0.20 },
+      { name: "1 tsp cumin", cost: 0.08 },
+    ],
+    steps: [
+      "Sauté onion and garlic",
+      "Add lentils, tomatoes, coconut milk, and cumin",
+      "Simmer 25 minutes until lentils are tender",
+      "Season and serve",
+    ],
+  },
+  {
+    id: "tofu-rice-bowl",
+    name: "Crispy Tofu Rice Bowl",
+    duration: "30 min",
+    servings: 2,
+    tags: ["30 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$5.30",
+    ingredients: [
+      { name: "1 block firm tofu (14 oz)", cost: 2.29 },
+      { name: "1 cup jasmine rice", pantry: true, cost: 0.40 },
+      { name: "1 cup broccoli florets (6 oz)", cost: 1.00 },
+      { name: "1 medium carrot", cost: 0.30 },
+      { name: "2 tbsp soy sauce", cost: 0.15 },
+      { name: "1 tbsp sesame oil", cost: 0.20 },
+    ],
+    steps: [
+      "Cook rice according to package",
+      "Press and cube tofu, pan-sear until crispy",
+      "Cook vegetables and add sauce",
+      "Assemble bowls with rice, tofu, and veggies",
+    ],
+  },
+  {
+    id: "chickpea-shawarma-wrap",
+    name: "Chickpea Shawarma Wrap",
+    duration: "20 min",
+    servings: 2,
+    tags: ["20 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$4.10",
+    ingredients: [
+      { name: "1 can chickpeas (15 oz)", pantry: true, cost: 0.89 },
+      { name: "2 large flour tortillas", pantry: true, cost: 0.80 },
+      { name: "1 cup shredded green cabbage", cost: 0.50 },
+      { name: "1 medium cucumber", cost: 0.60 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
+      { name: "1 tsp seasoning of choice", cost: 0.08 },
+    ],
+    steps: [
+      "Roast chickpeas in oil and seasoning",
+      "Slice cucumber and prep cabbage",
+      "Warm tortillas",
+      "Fill wraps with chickpeas and veggies",
+    ],
+  },
+  {
+    id: "tomato-white-bean-toast",
+    name: "Tomato White Bean Toast",
+    duration: "15 min",
+    servings: 2,
+    tags: ["15 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$3.90",
+    ingredients: [
+      { name: "1 can cannellini beans (15 oz)", pantry: true, cost: 1.09 },
+      { name: "4 slices whole-grain bread", pantry: true, cost: 0.80 },
+      { name: "2 medium tomatoes", cost: 1.00 },
+      { name: "2 cloves garlic", cost: 0.20 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
+      { name: "1 tsp Italian seasoning", cost: 0.08 },
+    ],
+    steps: [
+      "Toast bread until golden",
+      "Mash beans with garlic, oil, and seasoning",
+      "Slice tomatoes",
+      "Spread beans on toast and top with tomatoes",
+    ],
+  },
+];
+
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+const DIETARY_TAGS = ["Vegetarian", "Vegan", "Pescatarian"];
+
+type DietaryPreference = "vegetarian" | "vegan" | "pescatarian" | "any";
+
+function normalizeDietary(value?: string): DietaryPreference {
+  const dietary = (value || "").toLowerCase().trim();
+  if (dietary.includes("pesc")) return "pescatarian";
+  if (dietary.includes("vegan")) return "vegan";
+  if (dietary.includes("veget")) return "vegetarian";
+  return "any";
+}
+
+function getDietaryTag(preference: DietaryPreference): string | null {
+  if (preference === "any") return null;
+  if (preference === "pescatarian") return "Pescatarian ✓";
+  if (preference === "vegan") return "Vegan ✓";
+  return "Vegetarian ✓";
+}
+
+function matchesDiet(recipe: Omit<Meal, "day">, preference: DietaryPreference): boolean {
+  const hasTag = (tag: string) => recipe.tags.some((t) => t.toLowerCase() === tag.toLowerCase());
+  if (preference === "pescatarian") return hasTag("Pescatarian");
+  if (preference === "vegan") return hasTag("Vegan");
+  if (preference === "vegetarian") return hasTag("Vegetarian") || hasTag("Vegan");
+  return true;
+}
+
+function ensureMealCount(recipes: Omit<Meal, "day">[], count: number): Omit<Meal, "day">[] {
+  if (recipes.length >= count) return recipes.slice(0, count);
+  if (recipes.length === 0) return [];
+
+  const completed = [...recipes];
+  let i = 0;
+  while (completed.length < count) {
+    const base = recipes[i % recipes.length];
+    const variantNumber = Math.floor(i / recipes.length) + 2;
+    completed.push({
+      ...base,
+      id: `${base.id}-v${variantNumber}`,
+      name: `${base.name} (Variation ${variantNumber})`,
+    });
+    i += 1;
+  }
+  return completed;
+}
 
 function seededShuffle<T>(arr: T[], seed: number): T[] {
   const copy = [...arr];
@@ -386,10 +694,36 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const numMeals = Math.min(7, Math.max(2, parseInt(inputs?.meals || "5") || 5));
   const budgetNum = parseFloat(inputs?.budget || "60") || 60;
   const perMealBudget = budgetNum / numMeals;
+  const dietaryPreference = normalizeDietary(inputs?.dietary);
+  const dietaryTag = getDietaryTag(dietaryPreference);
+  const mergedPool = [...RECIPE_POOL, ...PESCATARIAN_POOL, ...VEGAN_EXTRA_POOL];
 
   const seed = Date.now();
-  const shuffled = seededShuffle(RECIPE_POOL, seed);
-  const selected = shuffled.slice(0, numMeals);
+  const filteredPool = mergedPool.filter((recipe) => matchesDiet(recipe, dietaryPreference));
+
+  let selectedBase: Omit<Meal, "day">[];
+  if (dietaryPreference === "pescatarian") {
+    const anchorIds = [
+      "grilled-salmon-veggies",
+      "tuna-rice-bowl",
+      "shrimp-stir-fry",
+      "leftover-salmon-salad",
+    ];
+    const anchors = anchorIds
+      .map((id) => PESCATARIAN_POOL.find((recipe) => recipe.id === id))
+      .filter((recipe): recipe is Omit<Meal, "day"> => Boolean(recipe));
+    const extras = seededShuffle(
+      PESCATARIAN_POOL.filter((recipe) => !anchorIds.includes(recipe.id)),
+      seed
+    );
+    selectedBase = ensureMealCount([...anchors, ...extras], numMeals);
+  } else {
+    selectedBase = ensureMealCount(seededShuffle(filteredPool, seed), numMeals);
+  }
+
+  const selected = selectedBase.length > 0
+    ? selectedBase
+    : ensureMealCount(seededShuffle(mergedPool, seed), numMeals);
 
   if (inputs?.preference === "savings") {
     selected.sort((a, b) => parseFloat(a.estimatedCost.replace("$", "")) - parseFloat(b.estimatedCost.replace("$", "")));
@@ -431,9 +765,10 @@ export function generatePlan(inputs?: FormInputs): PlanData {
       day: DAYS[i],
       estimatedCost: `$${adjustedCost}`,
       reuseBadges: badges,
-      tags: recipe.tags.map((t) =>
-        inputs?.dietary && t === "Vegetarian" ? inputs.dietary : t
-      ),
+      tags: dietaryTag
+        ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), dietaryTag]
+        : recipe.tags,
+      cooked: false,
     };
   });
 
@@ -481,6 +816,8 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     metrics: {
       dinners: numMeals,
       costRange: `$${lowCost}–$${highCost}`,
+      costLow: lowCost,
+      costHigh: highCost,
       reuseScore: `${reusePercent}% of ingredients used in 2+ meals`,
     },
     meals,
