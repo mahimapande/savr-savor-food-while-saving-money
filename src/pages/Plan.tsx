@@ -30,7 +30,7 @@ function buildSections(items: ShoppingListItem[]): CategorizedSections[] {
     produce: "Produce",
     dairy: "Dairy",
     plantBased: "Plant-based",
-    dryGoods: "Dry Goods / Pantry",
+    dryGoods: "Dry goods",
     spicesCondiments: "Spices & Condiments",
   };
   return Object.entries(groups)
