@@ -7,17 +7,21 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Check, Leaf, RefreshCw, DollarSign } from "lucide-react";
 
+const WEEKLY_PLAN_KEY = "weeklyPlan";
+
 const Recipe = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const formInputs = location.state as FormInputs | undefined;
   const plan = useMemo(() => {
-    const stored = sessionStorage.getItem("savr-plan");
+    const stored = localStorage.getItem(WEEKLY_PLAN_KEY);
     if (stored) {
       try { return JSON.parse(stored); } catch {}
     }
-    return generatePlan(formInputs);
+    const generated = generatePlan(formInputs);
+    localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(generated));
+    return generated;
   }, [formInputs]);
   const meal = plan.meals.find((m: any) => m.id === id);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
