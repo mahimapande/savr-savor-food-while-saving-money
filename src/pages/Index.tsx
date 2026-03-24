@@ -6,10 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
+import { generatePlan, FormInputs } from "@/data/mockData";
 import { UtensilsCrossed, Plus, X } from "lucide-react";
 
 const CUISINES = ["Italian", "Thai", "American"];
 const PANTRY_DEFAULTS = ["Eggs", "Milk", "Butter"];
+const WEEKLY_PLAN_KEY = "weeklyPlan";
+const HAVE_STORAGE_KEY = "savr-have-items";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -50,8 +53,25 @@ const Index = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const inputs: FormInputs = {
+      budget,
+      meals,
+      dietary,
+      cuisines,
+      pantryItems,
+      preference,
+    };
+
+    const generated = generatePlan(inputs);
+    localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(generated));
+    localStorage.setItem(
+      HAVE_STORAGE_KEY,
+      JSON.stringify(generated.pantryItems.map((item) => item.name))
+    );
+
     navigate("/plan", {
-      state: { budget, meals, dietary, cuisines, pantryItems, preference },
+      state: inputs,
     });
   };
 

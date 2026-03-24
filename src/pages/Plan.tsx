@@ -1,12 +1,13 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { generatePlan, FormInputs, ShoppingListItem, categorizeItem } from "@/data/mockData";
+import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem } from "@/data/mockData";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight, X, Package, ArrowRight, ArrowLeft, PiggyBank } from "lucide-react";
+import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight, Package, ArrowRight, ArrowLeft, PiggyBank } from "lucide-react";
 
 const HAVE_STORAGE_KEY = "savr-have-items";
+const WEEKLY_PLAN_KEY = "weeklyPlan";
 
 interface CategorizedSections {
   label: string;
@@ -42,9 +43,18 @@ const Plan = () => {
   const location = useLocation();
   const formInputs = location.state as FormInputs | undefined;
 
-  const plan = useMemo(() => {
+  const plan = useMemo<PlanData>(() => {
+    const stored = localStorage.getItem(WEEKLY_PLAN_KEY);
+    if (stored) {
+      try {
+        return JSON.parse(stored) as PlanData;
+      } catch {
+        localStorage.removeItem(WEEKLY_PLAN_KEY);
+      }
+    }
+
     const generated = generatePlan(formInputs);
-    sessionStorage.setItem("savr-plan", JSON.stringify(generated));
+    localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(generated));
     return generated;
   }, [formInputs]);
 
