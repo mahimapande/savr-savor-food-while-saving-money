@@ -1,10 +1,13 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { generatePlan, FormInputs } from "@/data/mockData";
+import { generatePlan, FormInputs, ShoppingListItem } from "@/data/mockData";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+
+const STORAGE_KEY = "savr-have-items";
 
 const Plan = () => {
   const navigate = useNavigate();
@@ -15,7 +18,31 @@ const Plan = () => {
     sessionStorage.setItem("savr-plan", JSON.stringify(generated));
     return generated;
   }, [formInputs]);
+
+  // "I have this" items persisted in localStorage
+  const [haveItems, setHaveItems] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  // Checked-off items (visual strikethrough only, item stays visible)
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...haveItems]));
+  }, [haveItems]);
+
+  const markHaveItem = useCallback((itemName: string) => {
+    setHaveItems((prev) => {
+      const next = new Set(prev);
+      next.add(itemName);
+      return next;
+    });
+  }, []);
 
   const toggleItem = (item: string) => {
     setCheckedItems((prev) => {
@@ -24,6 +51,27 @@ const Plan = () => {
       return next;
     });
   };
+
+  // Filter out "I have this" items and recalculate
+  const sections = useMemo(() => {
+    const filterItems = (items: ShoppingListItem[]) =>
+      items.filter((item) => !haveItems.has(item.name));
+
+    return [
+      { label: "Produce", items: filterItems(plan.shoppingList.produce) },
+      { label: "Dairy", items: filterItems(plan.shoppingList.dairy) },
+      { label: "Plant-based", items: filterItems(plan.shoppingList.plantBased) },
+      { label: "Dry Goods / Pantry", items: filterItems(plan.shoppingList.dryGoods) },
+      { label: "Spices & Condiments", items: filterItems(plan.shoppingList.spicesCondiments) },
+    ].filter((s) => s.items.length > 0);
+  }, [plan.shoppingList, haveItems]);
+
+  const visibleItems = useMemo(() => sections.flatMap((s) => s.items), [sections]);
+  const totalCount = visibleItems.length;
+  const totalCost = useMemo(
+    () => visibleItems.reduce((sum, item) => sum + item.cost, 0),
+    [visibleItems]
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -45,7 +93,7 @@ const Plan = () => {
           </Card>
           <Card className="flex flex-row sm:flex-col items-center gap-2 sm:gap-1 p-3 sm:text-center bg-savr-badge border-0">
             <Recycle className="h-5 w-5 text-primary" />
-            <span className="text-lg font-semibold text-foreground">82%</span>
+            <span className="text-lg font-semibold text-foreground">{plan.metrics.reuseScore.split("%")[0]}%</span>
             <span className="text-xs text-muted-foreground">reuse score</span>
           </Card>
         </div>
@@ -81,43 +129,51 @@ const Plan = () => {
           <div className="mb-3 flex items-center gap-2">
             <ShoppingCart className="h-5 w-5 text-primary" />
             <h2 className="font-semibold text-foreground">
-              Shopping list ({plan.shoppingList.totalItems} items)
+              Shopping list ({totalCount} items)
             </h2>
             <Badge variant="secondary" className="ml-auto">
-              Est. {plan.shoppingList.estimatedCost}
+              Est. ${Math.round(totalCost)}
             </Badge>
           </div>
           <div className="overflow-y-auto flex-1 -mr-2 pr-2">
-            {(
-              [
-                { label: "Produce", items: plan.shoppingList.produce },
-                { label: "Pantry", items: plan.shoppingList.pantry },
-                { label: "Dairy", items: plan.shoppingList.dairy },
-              ] as const
-            ).map((section) => (
-              <div key={section.label} className="mb-2">
+            {sections.map((section) => (
+              <div key={section.label} className="mb-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
                   {section.label}
                 </p>
                 <ul className="space-y-1 text-sm text-foreground">
                   {section.items.map((item) => (
-                    <label
-                      key={item}
-                      className="flex cursor-pointer items-center gap-2"
-                    >
-                      <Checkbox
-                        checked={checkedItems.has(item)}
-                        onCheckedChange={() => toggleItem(item)}
-                        className="shrink-0"
-                      />
-                      <span className={checkedItems.has(item) ? "line-through text-muted-foreground" : ""}>
-                        {item}
-                      </span>
-                    </label>
+                    <li key={item.name} className="flex items-center gap-2 group">
+                      <label className="flex flex-1 cursor-pointer items-center gap-2 min-w-0">
+                        <Checkbox
+                          checked={checkedItems.has(item.name)}
+                          onCheckedChange={() => toggleItem(item.name)}
+                          className="shrink-0"
+                        />
+                        <span className={`truncate ${checkedItems.has(item.name) ? "line-through text-muted-foreground" : ""}`}>
+                          {item.name}
+                        </span>
+                      </label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-1.5 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 shrink-0 transition-opacity"
+                        onClick={() => markHaveItem(item.name)}
+                        title="I have this"
+                      >
+                        <X className="h-3 w-3 mr-0.5" />
+                        Have it
+                      </Button>
+                    </li>
                   ))}
                 </ul>
               </div>
             ))}
+            {sections.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                You have everything you need! 🎉
+              </p>
+            )}
           </div>
         </Card>
       </div>

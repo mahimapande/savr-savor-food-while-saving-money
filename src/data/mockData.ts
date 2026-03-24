@@ -1,3 +1,10 @@
+export interface Ingredient {
+  name: string;
+  note?: string;
+  pantry?: boolean;
+  cost: number; // per-item estimated cost in dollars
+}
+
 export interface Meal {
   id: string;
   day: string;
@@ -7,7 +14,7 @@ export interface Meal {
   tags: string[];
   reuseBadges: string[];
   estimatedCost: string;
-  ingredients: { name: string; note?: string; pantry?: boolean }[];
+  ingredients: Ingredient[];
   steps: string[];
 }
 
@@ -18,13 +25,22 @@ export interface PlanData {
     reuseScore: string;
   };
   meals: Meal[];
-  shoppingList: {
-    produce: string[];
-    pantry: string[];
-    dairy: string[];
-    totalItems: number;
-    estimatedCost: string;
-  };
+  shoppingList: ShoppingList;
+}
+
+export interface ShoppingListItem {
+  name: string;
+  cost: number;
+}
+
+export interface ShoppingList {
+  produce: ShoppingListItem[];
+  dairy: ShoppingListItem[];
+  plantBased: ShoppingListItem[];
+  dryGoods: ShoppingListItem[];
+  spicesCondiments: ShoppingListItem[];
+  totalItems: number;
+  estimatedCost: string;
 }
 
 export interface FormInputs {
@@ -36,7 +52,7 @@ export interface FormInputs {
   preference: string;
 }
 
-// Recipe pool organized by cuisine leaning
+// Recipe pool with realistic quantities and per-item costs
 const RECIPE_POOL: Omit<Meal, "day">[] = [
   {
     id: "chickpea-coconut-curry",
@@ -47,16 +63,18 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     reuseBadges: [],
     estimatedCost: "$4.80",
     ingredients: [
-      { name: "1 can chickpeas", pantry: true },
-      { name: "1 cup coconut milk" },
-      { name: "1 bunch cilantro", note: "used in multiple meals" },
-      { name: "1 cup rice", pantry: true },
-      { name: "1 onion" },
-      { name: "2 cloves garlic" },
+      { name: "1 can chickpeas (15 oz)", pantry: true, cost: 0.89 },
+      { name: "1 can coconut milk (13.5 oz)", cost: 1.79 },
+      { name: "1 bunch cilantro", note: "used in multiple meals", cost: 0.79 },
+      { name: "1 cup jasmine rice", pantry: true, cost: 0.40 },
+      { name: "1 medium yellow onion", cost: 0.50 },
+      { name: "2 cloves garlic", cost: 0.20 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
+      { name: "1 tsp cumin", cost: 0.08 },
     ],
     steps: [
-      "Sauté onions + garlic 3-4 min",
-      "Add spices, toast 1 min",
+      "Sauté onions + garlic in olive oil 3-4 min",
+      "Add cumin and spices, toast 1 min",
       "Add chickpeas + coconut milk, simmer 15 min",
       "Serve over rice, top w/ cilantro",
     ],
@@ -70,12 +88,12 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     reuseBadges: [],
     estimatedCost: "$3.90",
     ingredients: [
-      { name: "8 oz spaghetti", pantry: true },
-      { name: "2 lemons" },
-      { name: "3 cloves garlic" },
-      { name: "Fresh parsley" },
-      { name: "Olive oil" },
-      { name: "Parmesan cheese" },
+      { name: "8 oz spaghetti", pantry: true, cost: 0.75 },
+      { name: "2 lemons", cost: 0.80 },
+      { name: "3 cloves garlic", cost: 0.30 },
+      { name: "1 bunch fresh parsley", cost: 0.79 },
+      { name: "2 tbsp olive oil", cost: 0.30 },
+      { name: "1/4 cup grated parmesan cheese", cost: 0.95 },
     ],
     steps: [
       "Cook pasta al dente, reserve ½ cup pasta water",
@@ -93,12 +111,14 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     reuseBadges: [],
     estimatedCost: "$4.20",
     ingredients: [
-      { name: "1 can black beans", pantry: true },
-      { name: "6 small tortillas" },
-      { name: "1 avocado" },
-      { name: "1 lime" },
-      { name: "1 cup shredded cabbage" },
-      { name: "Hot sauce" },
+      { name: "1 can black beans (15 oz)", pantry: true, cost: 0.79 },
+      { name: "6 small corn tortillas", pantry: true, cost: 1.29 },
+      { name: "1 ripe avocado", cost: 1.00 },
+      { name: "1 lime", cost: 0.25 },
+      { name: "1 cup shredded green cabbage", cost: 0.50 },
+      { name: "1 tbsp hot sauce", cost: 0.10 },
+      { name: "1 tsp cumin", cost: 0.08 },
+      { name: "1 tsp chili powder", cost: 0.08 },
     ],
     steps: [
       "Heat and season black beans with cumin & chili powder",
@@ -116,11 +136,12 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     reuseBadges: [],
     estimatedCost: "$5.20",
     ingredients: [
-      { name: "8 oz penne", pantry: true },
-      { name: "1 can crushed tomatoes" },
-      { name: "1 cup cheddar cheese" },
-      { name: "1 bell pepper" },
-      { name: "Italian seasoning" },
+      { name: "8 oz penne pasta", pantry: true, cost: 0.75 },
+      { name: "1 can crushed tomatoes (28 oz)", pantry: true, cost: 1.29 },
+      { name: "1 cup shredded cheddar cheese (4 oz)", cost: 1.50 },
+      { name: "1 medium bell pepper", cost: 1.00 },
+      { name: "1 tsp Italian seasoning", cost: 0.08 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
     ],
     steps: [
       "Cook pasta al dente, drain",
@@ -138,16 +159,17 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     reuseBadges: [],
     estimatedCost: "$4.00",
     ingredients: [
-      { name: "2 bell peppers" },
-      { name: "1 cup broccoli" },
-      { name: "1 cup rice", pantry: true },
-      { name: "Soy sauce" },
-      { name: "Fresh ginger" },
+      { name: "2 medium bell peppers", cost: 2.00 },
+      { name: "1 cup broccoli florets (6 oz)", cost: 1.00 },
+      { name: "1 cup jasmine rice", pantry: true, cost: 0.40 },
+      { name: "2 tbsp soy sauce", cost: 0.15 },
+      { name: "1 inch fresh ginger, minced", cost: 0.30 },
+      { name: "1 tbsp sesame oil", cost: 0.20 },
     ],
     steps: [
       "Cook rice according to package",
       "Stir-fry vegetables on high heat 5 min",
-      "Add soy sauce & ginger, toss to coat",
+      "Add soy sauce, ginger & sesame oil, toss to coat",
       "Serve over rice",
     ],
   },
@@ -160,11 +182,12 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     reuseBadges: [],
     estimatedCost: "$5.50",
     ingredients: [
-      { name: "1 block tofu" },
-      { name: "1 bell pepper" },
-      { name: "1 zucchini" },
-      { name: "Olive oil" },
-      { name: "Seasoning of choice" },
+      { name: "1 block firm tofu (14 oz)", cost: 2.29 },
+      { name: "1 medium bell pepper", cost: 1.00 },
+      { name: "1 medium zucchini", cost: 0.80 },
+      { name: "2 tbsp olive oil", cost: 0.30 },
+      { name: "1 tsp seasoning of choice", cost: 0.08 },
+      { name: "1 cup jasmine rice", pantry: true, cost: 0.40 },
     ],
     steps: [
       "Press & cube tofu, chop veggies",
@@ -182,15 +205,16 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     reuseBadges: [],
     estimatedCost: "$5.80",
     ingredients: [
-      { name: "1 cup arborio rice", pantry: true },
-      { name: "8 oz mushrooms" },
-      { name: "1 onion" },
-      { name: "2 cups vegetable broth" },
-      { name: "Parmesan cheese" },
-      { name: "2 cloves garlic" },
+      { name: "1 cup arborio rice", pantry: true, cost: 0.80 },
+      { name: "8 oz cremini mushrooms", cost: 2.49 },
+      { name: "1 medium yellow onion", cost: 0.50 },
+      { name: "2 cups vegetable broth", pantry: true, cost: 0.60 },
+      { name: "1/4 cup grated parmesan cheese", cost: 0.95 },
+      { name: "2 cloves garlic", cost: 0.20 },
+      { name: "1 tbsp butter", cost: 0.20 },
     ],
     steps: [
-      "Sauté onion & garlic, add mushrooms until golden",
+      "Sauté onion & garlic in butter, add mushrooms until golden",
       "Add rice, stir 1 min to toast",
       "Add broth ½ cup at a time, stirring often",
       "Finish with parmesan, season to taste",
@@ -205,12 +229,13 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     reuseBadges: [],
     estimatedCost: "$4.50",
     ingredients: [
-      { name: "2 sweet potatoes" },
-      { name: "1 can kidney beans", pantry: true },
-      { name: "1 can diced tomatoes" },
-      { name: "1 onion" },
-      { name: "Chili powder" },
-      { name: "Cumin" },
+      { name: "2 medium sweet potatoes", cost: 1.60 },
+      { name: "1 can kidney beans (15 oz)", pantry: true, cost: 0.89 },
+      { name: "1 can diced tomatoes (14.5 oz)", pantry: true, cost: 0.99 },
+      { name: "1 medium yellow onion", cost: 0.50 },
+      { name: "1 tsp chili powder", cost: 0.08 },
+      { name: "1 tsp cumin", cost: 0.08 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
     ],
     steps: [
       "Dice sweet potatoes, sauté onion 3 min",
@@ -228,12 +253,12 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     reuseBadges: [],
     estimatedCost: "$3.70",
     ingredients: [
-      { name: "8 oz noodles", pantry: true },
-      { name: "3 tbsp peanut butter" },
-      { name: "2 tbsp soy sauce" },
-      { name: "1 lime" },
-      { name: "1 carrot, shredded" },
-      { name: "Green onions" },
+      { name: "8 oz rice noodles", pantry: true, cost: 1.29 },
+      { name: "3 tbsp peanut butter", cost: 0.30 },
+      { name: "2 tbsp soy sauce", cost: 0.15 },
+      { name: "1 lime", cost: 0.25 },
+      { name: "1 medium carrot, shredded", cost: 0.30 },
+      { name: "2 green onions", cost: 0.20 },
     ],
     steps: [
       "Cook noodles, drain and rinse",
@@ -251,12 +276,12 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     reuseBadges: [],
     estimatedCost: "$5.00",
     ingredients: [
-      { name: "2 flatbreads" },
-      { name: "Fresh mozzarella" },
-      { name: "2 tomatoes" },
-      { name: "Fresh basil" },
-      { name: "Balsamic glaze" },
-      { name: "Olive oil" },
+      { name: "2 flatbreads (naan or pita)", pantry: true, cost: 1.99 },
+      { name: "4 oz fresh mozzarella", cost: 2.49 },
+      { name: "2 medium tomatoes", cost: 1.00 },
+      { name: "1 bunch fresh basil", cost: 0.79 },
+      { name: "1 tbsp balsamic glaze", cost: 0.30 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
     ],
     steps: [
       "Warm flatbreads in oven at 400°F 5 min",
@@ -274,12 +299,12 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     reuseBadges: [],
     estimatedCost: "$2.80",
     ingredients: [
-      { name: "2 cups cooked rice", pantry: true },
-      { name: "3 eggs" },
-      { name: "1 cup frozen peas" },
-      { name: "Soy sauce" },
-      { name: "Sesame oil" },
-      { name: "Green onions" },
+      { name: "2 cups cooked jasmine rice", pantry: true, cost: 0.40 },
+      { name: "3 large eggs", cost: 0.75 },
+      { name: "1 cup frozen peas (5 oz)", cost: 0.50 },
+      { name: "2 tbsp soy sauce", cost: 0.15 },
+      { name: "1 tsp sesame oil", cost: 0.10 },
+      { name: "2 green onions", cost: 0.20 },
     ],
     steps: [
       "Scramble eggs in hot wok, set aside",
@@ -297,12 +322,12 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     reuseBadges: [],
     estimatedCost: "$4.10",
     ingredients: [
-      { name: "2 large tortillas" },
-      { name: "1 cucumber" },
-      { name: "1 cup cherry tomatoes" },
-      { name: "Feta cheese" },
-      { name: "Kalamata olives" },
-      { name: "Hummus" },
+      { name: "2 large flour tortillas", pantry: true, cost: 0.80 },
+      { name: "1 medium cucumber", cost: 0.60 },
+      { name: "1 cup cherry tomatoes (6 oz)", cost: 1.50 },
+      { name: "2 oz crumbled feta cheese", cost: 1.00 },
+      { name: "1/4 cup kalamata olives", cost: 0.60 },
+      { name: "3 tbsp hummus", cost: 0.50 },
     ],
     steps: [
       "Spread hummus on tortillas",
@@ -331,7 +356,7 @@ function findSharedIngredients(meals: Omit<Meal, "day">[]): Map<string, number> 
   for (const meal of meals) {
     const seen = new Set<string>();
     for (const ing of meal.ingredients) {
-      const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|oz|blocks?|bunch(es)?|cloves?|large|small)?\s*/i, "").toLowerCase().trim();
+      const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
       if (!seen.has(key)) {
         seen.add(key);
         ingredientCount.set(key, (ingredientCount.get(key) || 0) + 1);
@@ -341,50 +366,65 @@ function findSharedIngredients(meals: Omit<Meal, "day">[]): Map<string, number> 
   return ingredientCount;
 }
 
+// Categorization keywords
+const DAIRY_KEYWORDS = ["cheese", "milk", "butter", "yogurt", "cream", "eggs", "egg", "mozzarella", "parmesan", "feta", "cheddar"];
+const PLANT_BASED_KEYWORDS = ["tofu", "tempeh", "coconut milk", "oat milk", "almond milk", "soy milk", "plant-based"];
+const DRY_GOODS_KEYWORDS = ["rice", "pasta", "noodle", "spaghetti", "penne", "beans", "chickpeas", "lentils", "flour", "sugar", "tortilla", "flatbread", "pita", "naan", "broth", "peanut butter", "hummus", "olives", "peas", "canned"];
+const SPICE_KEYWORDS = ["oil", "sauce", "seasoning", "spice", "cumin", "chili powder", "italian seasoning", "ginger", "balsamic", "sesame oil", "hot sauce", "soy sauce", "vinegar"];
+
+function categorizeItem(name: string): keyof Omit<ShoppingList, "totalItems" | "estimatedCost"> {
+  const lower = name.toLowerCase();
+  // Plant-based must be checked before dairy (coconut milk != dairy milk)
+  if (PLANT_BASED_KEYWORDS.some((k) => lower.includes(k))) return "plantBased";
+  if (DAIRY_KEYWORDS.some((k) => lower.includes(k))) return "dairy";
+  if (SPICE_KEYWORDS.some((k) => lower.includes(k))) return "spicesCondiments";
+  if (DRY_GOODS_KEYWORDS.some((k) => lower.includes(k))) return "dryGoods";
+  return "produce";
+}
+
 export function generatePlan(inputs?: FormInputs): PlanData {
   const numMeals = Math.min(7, Math.max(2, parseInt(inputs?.meals || "5") || 5));
   const budgetNum = parseFloat(inputs?.budget || "60") || 60;
   const perMealBudget = budgetNum / numMeals;
 
-  // Use current timestamp as seed for variety
   const seed = Date.now();
   const shuffled = seededShuffle(RECIPE_POOL, seed);
   const selected = shuffled.slice(0, numMeals);
 
-  // If preference is savings, sort by cost (cheapest first); variety keeps shuffle order
   if (inputs?.preference === "savings") {
     selected.sort((a, b) => parseFloat(a.estimatedCost.replace("$", "")) - parseFloat(b.estimatedCost.replace("$", "")));
   }
 
-  // Calculate shared ingredients for reuse badges
   const shared = findSharedIngredients(selected);
   const reuseEntries = [...shared.entries()].filter(([, count]) => count >= 2);
   const totalIngredients = selected.reduce((sum, m) => sum + m.ingredients.length, 0);
   const reusedIngredients = reuseEntries.reduce((sum, [, count]) => sum + count, 0);
   const reusePercent = totalIngredients > 0 ? Math.round((reusedIngredients / totalIngredients) * 100) : 0;
 
-  // Build meals with days and reuse badges
+  // Normalize user pantry items for matching
+  const userPantrySet = new Set(
+    (inputs?.pantryItems || []).map((p) => p.toLowerCase().trim())
+  );
+
   const meals: Meal[] = selected.map((recipe, i) => {
     const badges: string[] = [];
     const pantryCount = recipe.ingredients.filter((ing) => ing.pantry).length;
     if (pantryCount > 0) {
       badges.push(`Uses ${pantryCount} pantry item${pantryCount > 1 ? "s" : ""}`);
     }
-    // Check which ingredients are shared
     for (const ing of recipe.ingredients) {
-      const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|oz|blocks?|bunch(es)?|cloves?|large|small)?\s*/i, "").toLowerCase().trim();
+      const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
       const count = shared.get(key) || 0;
       if (count >= 2) {
         badges.push(`${key} used in ${count} meals`);
-        break; // only show one shared badge per meal
+        break;
       }
     }
-    badges.push(`Est. cost: ~${recipe.estimatedCost}`);
 
-    // Scale cost to fit budget
-    const baseCost = parseFloat(recipe.estimatedCost.replace("$", ""));
-    const scaleFactor = perMealBudget / 5; // 5 is roughly average base cost
+    const scaleFactor = perMealBudget / 5;
+    const baseCost = recipe.ingredients.reduce((sum, ing) => sum + ing.cost, 0);
     const adjustedCost = Math.max(2, baseCost * Math.min(1.5, Math.max(0.7, scaleFactor))).toFixed(2);
+    badges.push(`Est. cost: ~$${adjustedCost}`);
 
     return {
       ...recipe,
@@ -397,39 +437,36 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     };
   });
 
-  // Build shopping list from all meals
-  const produceItems = new Set<string>();
-  const pantryItemsList = new Set<string>();
-  const dairyItems = new Set<string>();
-
-  const dairyKeywords = ["cheese", "milk", "butter", "yogurt", "cream", "eggs", "egg", "tofu", "mozzarella", "parmesan", "feta", "cheddar"];
-  const pantryKeywords = ["rice", "pasta", "noodle", "spaghetti", "penne", "beans", "chickpeas", "lentils", "flour", "oil", "sauce", "seasoning", "spice", "cumin", "chili", "broth", "peanut butter", "tortilla", "flatbread", "hot sauce", "soy sauce", "balsamic"];
+  // Build shopping list excluding user pantry items
+  const lists: Record<string, Map<string, ShoppingListItem>> = {
+    produce: new Map(),
+    dairy: new Map(),
+    plantBased: new Map(),
+    dryGoods: new Map(),
+    spicesCondiments: new Map(),
+  };
 
   for (const meal of meals) {
     for (const ing of meal.ingredients) {
       const lower = ing.name.toLowerCase();
-      if (dairyKeywords.some((k) => lower.includes(k))) {
-        dairyItems.add(ing.name);
-      } else if (ing.pantry || pantryKeywords.some((k) => lower.includes(k))) {
-        pantryItemsList.add(ing.name);
-      } else {
-        produceItems.add(ing.name);
+      // Skip if user already has this pantry item
+      const isUserPantry = [...userPantrySet].some((p) => lower.includes(p));
+      if (isUserPantry) continue;
+
+      const category = categorizeItem(ing.name);
+      if (!lists[category].has(ing.name)) {
+        lists[category].set(ing.name, { name: ing.name, cost: ing.cost });
       }
     }
   }
 
-  // Add user's pantry items as already-have
-  if (inputs?.pantryItems) {
-    for (const item of inputs.pantryItems) {
-      pantryItemsList.add(`${item} ✓ (on hand)`);
-    }
-  }
-
-  const produce = [...produceItems];
-  const pantry = [...pantryItemsList];
-  const dairy = [...dairyItems];
-  const totalItems = produce.length + pantry.length + dairy.length;
-  const totalCost = meals.reduce((sum, m) => sum + parseFloat(m.estimatedCost.replace("$", "")), 0);
+  const produce = [...lists.produce.values()];
+  const dairy = [...lists.dairy.values()];
+  const plantBased = [...lists.plantBased.values()];
+  const dryGoods = [...lists.dryGoods.values()];
+  const spicesCondiments = [...lists.spicesCondiments.values()];
+  const allItems = [...produce, ...dairy, ...plantBased, ...dryGoods, ...spicesCondiments];
+  const totalCost = allItems.reduce((sum, item) => sum + item.cost, 0);
 
   const lowCost = Math.floor(totalCost * 0.9);
   const highCost = Math.ceil(totalCost * 1.1);
@@ -443,9 +480,11 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     meals,
     shoppingList: {
       produce,
-      pantry,
       dairy,
-      totalItems,
+      plantBased,
+      dryGoods,
+      spicesCondiments,
+      totalItems: allItems.length,
       estimatedCost: `$${Math.round(totalCost)}`,
     },
   };
