@@ -792,7 +792,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     meal.ingredients.map((ing) => ({ name: ing.name, cost: ing.cost }))
   );
 
-  console.log('ALL RECIPE INGREDIENTS:', allIngredients.map((item) => item.name));
+
 
   for (const ing of allIngredients) {
     const lower = ing.name.toLowerCase();
