@@ -819,6 +819,10 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const lowCost = Math.floor(totalCost * 0.9);
   const highCost = Math.ceil(totalCost * 1.1);
 
+  console.log('ALL RECIPE INGREDIENTS:', allShoppingItems.map(i => i.name));
+  console.log('FINAL PANTRY:', pantryItemsList.map(i => i.name));
+  console.log('FINAL SHOPPING:', allShoppingItems.length, 'items');
+
   return {
     metrics: {
       dinners: numMeals,
