@@ -678,15 +678,18 @@ function findSharedIngredients(meals: Omit<Meal, "day">[]): Map<string, number> 
 // Categorization keywords
 const DAIRY_KEYWORDS = ["cheese", "milk", "butter", "yogurt", "cream", "eggs", "egg", "mozzarella", "parmesan", "feta", "cheddar"];
 const PLANT_BASED_KEYWORDS = ["tofu", "tempeh", "coconut milk", "oat milk", "almond milk", "soy milk", "plant-based"];
-const DRY_GOODS_KEYWORDS = ["rice", "pasta", "noodle", "spaghetti", "penne", "beans", "chickpeas", "lentils", "flour", "sugar", "tortilla", "flatbread", "pita", "naan", "broth", "peanut butter", "hummus", "olives", "peas", "canned"];
-const SPICE_KEYWORDS = ["oil", "sauce", "seasoning", "spice", "cumin", "chili powder", "italian seasoning", "ginger", "balsamic", "sesame oil", "hot sauce", "soy sauce", "vinegar"];
+const NUT_BUTTER_KEYWORDS = ["peanut butter", "almond butter", "cashew butter", "nut butter"];
+const DRY_GOODS_KEYWORDS = ["rice", "pasta", "noodle", "spaghetti", "penne", "beans", "chickpeas", "lentils", "flour", "sugar", "tortilla", "flatbread", "pita", "naan", "broth", "peanut butter", "almond butter", "cashew butter", "nut butter", "hummus", "olives", "peas", "canned", "bread"];
+const SPICE_KEYWORDS = ["oil", "sauce", "seasoning", "spice", "cumin", "chili powder", "italian seasoning", "ginger", "balsamic", "sesame oil", "hot sauce", "soy sauce", "vinegar", "mustard", "capers"];
 
 export function categorizeItem(name: string): keyof Omit<ShoppingList, "totalItems" | "estimatedCost"> {
   const lower = name.toLowerCase();
   if (PLANT_BASED_KEYWORDS.some((k) => lower.includes(k))) return "plantBased";
+  // Check nut butters before dairy so "peanut butter" doesn't match "butter"
+  if (NUT_BUTTER_KEYWORDS.some((k) => lower.includes(k))) return "dryGoods";
+  if (DRY_GOODS_KEYWORDS.some((k) => lower.includes(k))) return "dryGoods";
   if (DAIRY_KEYWORDS.some((k) => lower.includes(k))) return "dairy";
   if (SPICE_KEYWORDS.some((k) => lower.includes(k))) return "spicesCondiments";
-  if (DRY_GOODS_KEYWORDS.some((k) => lower.includes(k))) return "dryGoods";
   return "produce";
 }
 
