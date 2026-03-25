@@ -76,9 +76,16 @@ const Index = () => {
 
   // Build the final pantryItems array from checked items + their amounts
   const buildPantryItems = (): string[] => {
+    const defaults = PANTRY_DEFAULTS.map((d) => d.name.toLowerCase());
     return [...pantryChecked].map((name) => {
       const amount = (pantryAmounts[name] || "").trim();
-      return amount || name; // use the amount string if provided, otherwise just the name
+      if (!amount) return name;
+      // For default items (Eggs, Milk, Butter), combine amount + name (e.g. "6 eggs")
+      if (defaults.includes(name.toLowerCase())) {
+        return `${amount} ${name.toLowerCase()}`;
+      }
+      // For custom items, the amount IS the full string already
+      return amount;
     });
   };
 
