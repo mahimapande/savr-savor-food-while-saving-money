@@ -9,6 +9,77 @@ import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight, Packag
 const HAVE_STORAGE_KEY = "savr-have-items";
 const WEEKLY_PLAN_KEY = "weeklyPlan";
 
+// Parse "3 tbsp olive oil" → { qty: 3, unit: "tbsp", base: "olive oil" }
+const QTY_UNIT_RE = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s*(cups?|cans?|tbsp|tsp|oz|bunch(?:es)?|cloves?|large|small|medium|inch|blocks?|slices?|lbs?)\b\s*/i;
+
+interface ParsedItem {
+  qty: number;
+  unit: string;
+  base: string;
+  originalName: string;
+  cost: number;
+}
+
+function parseIngredient(item: ShoppingListItem): ParsedItem {
+  const match = item.name.match(QTY_UNIT_RE);
+  if (match) {
+    let qty = 0;
+    const raw = match[1];
+    if (raw.includes("/")) {
+      const [num, den] = raw.split("/");
+      qty = parseInt(num) / parseInt(den);
+    } else {
+      qty = parseFloat(raw);
+    }
+    const unit = match[2].toLowerCase().replace(/s$/, "");
+    const base = item.name.slice(match[0].length).replace(/^\s*,?\s*/, "").trim();
+    return { qty, unit, base: base.toLowerCase(), originalName: item.name, cost: item.cost };
+  }
+  return { qty: 1, unit: "", base: item.name.toLowerCase(), originalName: item.name, cost: item.cost };
+}
+
+interface ConsolidatedItem {
+  displayName: string;
+  cost: number;
+  originalName: string; // key for have/need operations
+}
+
+function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
+  const groups = new Map<string, { qty: number; unit: string; base: string; cost: number; originalNames: string[] }>();
+
+  for (const item of items) {
+    const parsed = parseIngredient(item);
+    const key = `${parsed.base}||${parsed.unit}`;
+    const existing = groups.get(key);
+    if (existing && parsed.unit !== "") {
+      existing.qty += parsed.qty;
+      existing.cost += item.cost;
+      existing.originalNames.push(item.name);
+    } else if (!existing) {
+      groups.set(key, { qty: parsed.qty, unit: parsed.unit, base: parsed.base, cost: item.cost, originalNames: [item.name] });
+    } else {
+      // unit is empty and already exists - keep separate by using unique key
+      const altKey = `${parsed.base}||${parsed.unit}||${item.name}`;
+      groups.set(altKey, { qty: parsed.qty, unit: parsed.unit, base: parsed.base, cost: item.cost, originalNames: [item.name] });
+    }
+  }
+
+  return [...groups.values()].map((g) => {
+    let displayName: string;
+    if (g.unit) {
+      const unitDisplay = g.qty > 1 && !g.unit.endsWith("s") && g.unit !== "oz" ? g.unit : g.unit;
+      displayName = `${g.qty % 1 === 0 ? g.qty : g.qty.toFixed(1)} ${unitDisplay} ${g.base}`;
+    } else {
+      displayName = g.originalNames[0];
+    }
+    return {
+      displayName,
+      cost: g.cost,
+      originalName: g.originalNames[0], // primary key for interactions
+    };
+  });
+}
+
 interface CategorizedSections {
   label: string;
   items: ShoppingListItem[];
