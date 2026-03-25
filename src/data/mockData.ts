@@ -738,11 +738,6 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const reusedIngredients = reuseEntries.reduce((sum, [, count]) => sum + count, 0);
   const reusePercent = totalIngredients > 0 ? Math.round((reusedIngredients / totalIngredients) * 100) : 0;
 
-  // Normalize user pantry items for matching (word-boundary aware)
-  const userPantryList = (inputs?.pantryItems || []).map((p) => p.toLowerCase().trim());
-
-  console.log('SCREEN 1 PANTRY INPUT:', inputs?.pantryItems);
-
   const meals: Meal[] = selected.map((recipe, i) => {
     const badges: string[] = [];
     const pantryCount = recipe.ingredients.filter((ing) => ing.pantry).length;
@@ -775,9 +770,15 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     };
   });
 
-  // Build ALL items (including duplicates for consolidation), then split into shopping vs pantry
-  const pantryItemsList: ShoppingListItem[] = [];
-  const seenPantry = new Set<string>();
+  const userPantryList = Array.from(
+    new Set((inputs?.pantryItems || []).map((p) => p.trim()).filter(Boolean))
+  );
+  const pantryMatchers = userPantryList.map((raw) => ({ raw, normalized: raw.toLowerCase() }));
+  const pantryCostAccumulator = new Map<string, number>(
+    userPantryList.map((item) => [item, 0])
+  );
+
+  console.log('SCREEN 1 PANTRY INPUT:', userPantryList);
 
   const lists: Record<string, ShoppingListItem[]> = {
     produce: [],
@@ -787,26 +788,35 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     spicesCondiments: [],
   };
 
-  for (const meal of meals) {
-    for (const ing of meal.ingredients) {
-      const lower = ing.name.toLowerCase();
-      // Word-boundary match: "eggs" matches "3 large eggs" but "milk" does NOT match "coconut milk"
-      const isUserPantry = userPantryList.some((p) => {
-        const regex = new RegExp(`(^|\\s|\\d)${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(s|es)?($|\\s|,)`, 'i');
-        return regex.test(lower);
-      });
+  const allIngredients: ShoppingListItem[] = meals.flatMap((meal) =>
+    meal.ingredients.map((ing) => ({ name: ing.name, cost: ing.cost }))
+  );
 
-      if (isUserPantry) {
-        if (!seenPantry.has(ing.name)) {
-          seenPantry.add(ing.name);
-          pantryItemsList.push({ name: ing.name, cost: ing.cost });
-        }
-      } else {
-        const category = categorizeItem(ing.name);
-        lists[category].push({ name: ing.name, cost: ing.cost });
-      }
+  console.log('ALL RECIPE INGREDIENTS:', allIngredients.map((item) => item.name));
+
+  for (const ing of allIngredients) {
+    const lower = ing.name.toLowerCase();
+    const matchedPantry = pantryMatchers.find(({ normalized }) => {
+      const regex = new RegExp(`(^|\\s|\\d)${normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(s|es)?($|\\s|,)`, 'i');
+      return regex.test(lower);
+    });
+
+    if (matchedPantry) {
+      pantryCostAccumulator.set(
+        matchedPantry.raw,
+        (pantryCostAccumulator.get(matchedPantry.raw) || 0) + ing.cost
+      );
+      continue;
     }
+
+    const category = categorizeItem(ing.name);
+    lists[category].push({ name: ing.name, cost: ing.cost });
   }
+
+  const pantryItemsList: ShoppingListItem[] = userPantryList.map((name) => ({
+    name,
+    cost: pantryCostAccumulator.get(name) || 0,
+  }));
 
   const produce = lists.produce;
   const dairy = lists.dairy;
@@ -819,9 +829,8 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const lowCost = Math.floor(totalCost * 0.9);
   const highCost = Math.ceil(totalCost * 1.1);
 
-  console.log('ALL RECIPE INGREDIENTS:', allShoppingItems.map(i => i.name));
-  console.log('FINAL PANTRY:', pantryItemsList.map(i => i.name));
-  console.log('FINAL SHOPPING:', allShoppingItems.length, 'items');
+  console.log('FINAL PANTRY:', pantryItemsList.map((i) => i.name));
+  console.log('FINAL SHOPPING:', allShoppingItems.map((i) => i.name));
 
   return {
     metrics: {
