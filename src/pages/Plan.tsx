@@ -290,7 +290,7 @@ const Plan = () => {
                             variant="ghost"
                             size="sm"
                             className="h-6 px-1.5 text-xs text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 shrink-0 transition-opacity hover:text-primary hover:bg-primary/10"
-                            onClick={() => moveToHave(item.originalName)}
+                            onClick={() => moveToHave(item.originalNames)}
                             title="I have this"
                           >
                             <ArrowRight className="h-3 w-3 mr-0.5" />
