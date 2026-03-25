@@ -9,6 +9,77 @@ import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight, Packag
 const HAVE_STORAGE_KEY = "savr-have-items";
 const WEEKLY_PLAN_KEY = "weeklyPlan";
 
+// Parse "3 tbsp olive oil" → { qty: 3, unit: "tbsp", base: "olive oil" }
+const QTY_UNIT_RE = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s*(cups?|cans?|tbsp|tsp|oz|bunch(?:es)?|cloves?|large|small|medium|inch|blocks?|slices?|lbs?)\b\s*/i;
+
+interface ParsedItem {
+  qty: number;
+  unit: string;
+  base: string;
+  originalName: string;
+  cost: number;
+}
+
+function parseIngredient(item: ShoppingListItem): ParsedItem {
+  const match = item.name.match(QTY_UNIT_RE);
+  if (match) {
+    let qty = 0;
+    const raw = match[1];
+    if (raw.includes("/")) {
+      const [num, den] = raw.split("/");
+      qty = parseInt(num) / parseInt(den);
+    } else {
+      qty = parseFloat(raw);
+    }
+    const unit = match[2].toLowerCase().replace(/s$/, "");
+    const base = item.name.slice(match[0].length).replace(/^\s*,?\s*/, "").trim();
+    return { qty, unit, base: base.toLowerCase(), originalName: item.name, cost: item.cost };
+  }
+  return { qty: 1, unit: "", base: item.name.toLowerCase(), originalName: item.name, cost: item.cost };
+}
+
+interface ConsolidatedItem {
+  displayName: string;
+  cost: number;
+  originalNames: string[]; // all original item names in this group
+}
+
+function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
+  const groups = new Map<string, { qty: number; unit: string; base: string; cost: number; originalNames: string[] }>();
+
+  for (const item of items) {
+    const parsed = parseIngredient(item);
+    const key = `${parsed.base}||${parsed.unit}`;
+    const existing = groups.get(key);
+    if (existing && parsed.unit !== "") {
+      existing.qty += parsed.qty;
+      existing.cost += item.cost;
+      if (!existing.originalNames.includes(item.name)) {
+        existing.originalNames.push(item.name);
+      }
+    } else if (!existing) {
+      groups.set(key, { qty: parsed.qty, unit: parsed.unit, base: parsed.base, cost: item.cost, originalNames: [item.name] });
+    } else {
+      const altKey = `${parsed.base}||${parsed.unit}||${item.name}`;
+      groups.set(altKey, { qty: parsed.qty, unit: parsed.unit, base: parsed.base, cost: item.cost, originalNames: [item.name] });
+    }
+  }
+
+  return [...groups.values()].map((g) => {
+    let displayName: string;
+    if (g.unit) {
+      displayName = `${g.qty % 1 === 0 ? g.qty : g.qty.toFixed(1)} ${g.unit} ${g.base}`;
+    } else {
+      displayName = g.originalNames[0];
+    }
+    return {
+      displayName,
+      cost: g.cost,
+      originalNames: g.originalNames,
+    };
+  });
+}
+
 interface CategorizedSections {
   label: string;
   items: ShoppingListItem[];
@@ -84,14 +155,18 @@ const Plan = () => {
     localStorage.setItem(HAVE_STORAGE_KEY, JSON.stringify([...haveItems]));
   }, [haveItems]);
 
-  const moveToHave = useCallback((itemName: string) => {
-    setHaveItems((prev) => new Set(prev).add(itemName));
-  }, []);
-
-  const moveToShopping = useCallback((itemName: string) => {
+  const moveToHave = useCallback((itemNames: string[]) => {
     setHaveItems((prev) => {
       const next = new Set(prev);
-      next.delete(itemName);
+      itemNames.forEach((n) => next.add(n));
+      return next;
+    });
+  }, []);
+
+  const moveToShopping = useCallback((itemNames: string[]) => {
+    setHaveItems((prev) => {
+      const next = new Set(prev);
+      itemNames.forEach((n) => next.delete(n));
       return next;
     });
   }, []);
@@ -200,30 +275,33 @@ const Plan = () => {
               </Badge>
             </div>
             <div className="overflow-y-auto flex-1 -mr-2 pr-2">
-              {shoppingSections.map((section) => (
-                <div key={section.label} className="mb-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
-                    {section.label}
-                  </p>
-                  <ul className="space-y-1 text-sm text-foreground">
-                    {section.items.map((item) => (
-                      <li key={item.name} className="flex items-center gap-2 group">
-                        <span className="flex-1 truncate">{item.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-1.5 text-xs text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 shrink-0 transition-opacity hover:text-primary hover:bg-primary/10"
-                          onClick={() => moveToHave(item.name)}
-                          title="I have this"
-                        >
-                          <ArrowRight className="h-3 w-3 mr-0.5" />
-                          Have it
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+              {shoppingSections.map((section) => {
+                const consolidated = consolidateItems(section.items);
+                return (
+                  <div key={section.label} className="mb-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
+                      {section.label}
+                    </p>
+                    <ul className="space-y-1 text-sm text-foreground">
+                      {consolidated.map((item) => (
+                        <li key={item.displayName} className="flex items-center gap-2 group">
+                          <span className="flex-1 truncate">{item.displayName}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-1.5 text-xs text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 shrink-0 transition-opacity hover:text-primary hover:bg-primary/10"
+                            onClick={() => moveToHave(item.originalNames)}
+                            title="I have this"
+                          >
+                            <ArrowRight className="h-3 w-3 mr-0.5" />
+                            Have it
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
               {shoppingSections.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   You have everything you need! 🎉
@@ -241,30 +319,33 @@ const Plan = () => {
               </h2>
             </div>
             <div className="overflow-y-auto flex-1 -mr-2 pr-2">
-              {pantrySections.map((section) => (
-                <div key={section.label} className="mb-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
-                    {section.label}
-                  </p>
-                  <ul className="space-y-1 text-sm text-foreground">
-                    {section.items.map((item) => (
-                      <li key={item.name} className="flex items-center gap-2 group">
-                        <span className="flex-1 truncate">{item.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-1.5 text-xs text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 shrink-0 transition-opacity hover:text-accent hover:bg-accent/10"
-                          onClick={() => moveToShopping(item.name)}
-                          title="Don't have this"
-                        >
-                          <ArrowLeft className="h-3 w-3 mr-0.5" />
-                          Need it
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+              {pantrySections.map((section) => {
+                const consolidated = consolidateItems(section.items);
+                return (
+                  <div key={section.label} className="mb-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
+                      {section.label}
+                    </p>
+                    <ul className="space-y-1 text-sm text-foreground">
+                      {consolidated.map((item) => (
+                        <li key={item.displayName} className="flex items-center gap-2 group">
+                          <span className="flex-1 truncate">{item.displayName}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-1.5 text-xs text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 shrink-0 transition-opacity hover:text-accent hover:bg-accent/10"
+                            onClick={() => moveToShopping(item.originalNames)}
+                            title="Don't have this"
+                          >
+                            <ArrowLeft className="h-3 w-3 mr-0.5" />
+                            Need it
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
               {pantrySections.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No pantry items yet

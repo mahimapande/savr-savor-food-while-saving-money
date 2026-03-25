@@ -678,15 +678,18 @@ function findSharedIngredients(meals: Omit<Meal, "day">[]): Map<string, number> 
 // Categorization keywords
 const DAIRY_KEYWORDS = ["cheese", "milk", "butter", "yogurt", "cream", "eggs", "egg", "mozzarella", "parmesan", "feta", "cheddar"];
 const PLANT_BASED_KEYWORDS = ["tofu", "tempeh", "coconut milk", "oat milk", "almond milk", "soy milk", "plant-based"];
-const DRY_GOODS_KEYWORDS = ["rice", "pasta", "noodle", "spaghetti", "penne", "beans", "chickpeas", "lentils", "flour", "sugar", "tortilla", "flatbread", "pita", "naan", "broth", "peanut butter", "hummus", "olives", "peas", "canned"];
-const SPICE_KEYWORDS = ["oil", "sauce", "seasoning", "spice", "cumin", "chili powder", "italian seasoning", "ginger", "balsamic", "sesame oil", "hot sauce", "soy sauce", "vinegar"];
+const NUT_BUTTER_KEYWORDS = ["peanut butter", "almond butter", "cashew butter", "nut butter"];
+const DRY_GOODS_KEYWORDS = ["rice", "pasta", "noodle", "spaghetti", "penne", "beans", "chickpeas", "lentils", "flour", "sugar", "tortilla", "flatbread", "pita", "naan", "broth", "peanut butter", "almond butter", "cashew butter", "nut butter", "hummus", "olives", "peas", "canned", "bread"];
+const SPICE_KEYWORDS = ["oil", "sauce", "seasoning", "spice", "cumin", "chili powder", "italian seasoning", "ginger", "balsamic", "sesame oil", "hot sauce", "soy sauce", "vinegar", "mustard", "capers"];
 
 export function categorizeItem(name: string): keyof Omit<ShoppingList, "totalItems" | "estimatedCost"> {
   const lower = name.toLowerCase();
   if (PLANT_BASED_KEYWORDS.some((k) => lower.includes(k))) return "plantBased";
+  // Check nut butters before dairy so "peanut butter" doesn't match "butter"
+  if (NUT_BUTTER_KEYWORDS.some((k) => lower.includes(k))) return "dryGoods";
+  if (DRY_GOODS_KEYWORDS.some((k) => lower.includes(k))) return "dryGoods";
   if (DAIRY_KEYWORDS.some((k) => lower.includes(k))) return "dairy";
   if (SPICE_KEYWORDS.some((k) => lower.includes(k))) return "spicesCondiments";
-  if (DRY_GOODS_KEYWORDS.some((k) => lower.includes(k))) return "dryGoods";
   return "produce";
 }
 
@@ -772,40 +775,40 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     };
   });
 
-  // Build ALL unique items, then split into shopping vs pantry
-  const allUniqueItems = new Map<string, ShoppingListItem>();
+  // Build ALL items (including duplicates for consolidation), then split into shopping vs pantry
   const pantryItemsList: ShoppingListItem[] = [];
+  const seenPantry = new Set<string>();
 
-  const lists: Record<string, Map<string, ShoppingListItem>> = {
-    produce: new Map(),
-    dairy: new Map(),
-    plantBased: new Map(),
-    dryGoods: new Map(),
-    spicesCondiments: new Map(),
+  const lists: Record<string, ShoppingListItem[]> = {
+    produce: [],
+    dairy: [],
+    plantBased: [],
+    dryGoods: [],
+    spicesCondiments: [],
   };
 
   for (const meal of meals) {
     for (const ing of meal.ingredients) {
-      if (allUniqueItems.has(ing.name)) continue;
-      allUniqueItems.set(ing.name, { name: ing.name, cost: ing.cost });
-
       const lower = ing.name.toLowerCase();
       const isUserPantry = [...userPantrySet].some((p) => lower.includes(p));
 
       if (isUserPantry) {
-        pantryItemsList.push({ name: ing.name, cost: ing.cost });
+        if (!seenPantry.has(ing.name)) {
+          seenPantry.add(ing.name);
+          pantryItemsList.push({ name: ing.name, cost: ing.cost });
+        }
       } else {
         const category = categorizeItem(ing.name);
-        lists[category].set(ing.name, { name: ing.name, cost: ing.cost });
+        lists[category].push({ name: ing.name, cost: ing.cost });
       }
     }
   }
 
-  const produce = [...lists.produce.values()];
-  const dairy = [...lists.dairy.values()];
-  const plantBased = [...lists.plantBased.values()];
-  const dryGoods = [...lists.dryGoods.values()];
-  const spicesCondiments = [...lists.spicesCondiments.values()];
+  const produce = lists.produce;
+  const dairy = lists.dairy;
+  const plantBased = lists.plantBased;
+  const dryGoods = lists.dryGoods;
+  const spicesCondiments = lists.spicesCondiments;
   const allShoppingItems = [...produce, ...dairy, ...plantBased, ...dryGoods, ...spicesCondiments];
   const totalCost = allShoppingItems.reduce((sum, item) => sum + item.cost, 0);
 
