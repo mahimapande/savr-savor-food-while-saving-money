@@ -775,31 +775,31 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     };
   });
 
-  // Build ALL unique items, then split into shopping vs pantry
-  const allUniqueItems = new Map<string, ShoppingListItem>();
+  // Build ALL items (including duplicates for consolidation), then split into shopping vs pantry
   const pantryItemsList: ShoppingListItem[] = [];
+  const seenPantry = new Set<string>();
 
-  const lists: Record<string, Map<string, ShoppingListItem>> = {
-    produce: new Map(),
-    dairy: new Map(),
-    plantBased: new Map(),
-    dryGoods: new Map(),
-    spicesCondiments: new Map(),
+  const lists: Record<string, ShoppingListItem[]> = {
+    produce: [],
+    dairy: [],
+    plantBased: [],
+    dryGoods: [],
+    spicesCondiments: [],
   };
 
   for (const meal of meals) {
     for (const ing of meal.ingredients) {
-      if (allUniqueItems.has(ing.name)) continue;
-      allUniqueItems.set(ing.name, { name: ing.name, cost: ing.cost });
-
       const lower = ing.name.toLowerCase();
       const isUserPantry = [...userPantrySet].some((p) => lower.includes(p));
 
       if (isUserPantry) {
-        pantryItemsList.push({ name: ing.name, cost: ing.cost });
+        if (!seenPantry.has(ing.name)) {
+          seenPantry.add(ing.name);
+          pantryItemsList.push({ name: ing.name, cost: ing.cost });
+        }
       } else {
         const category = categorizeItem(ing.name);
-        lists[category].set(ing.name, { name: ing.name, cost: ing.cost });
+        lists[category].push({ name: ing.name, cost: ing.cost });
       }
     }
   }
