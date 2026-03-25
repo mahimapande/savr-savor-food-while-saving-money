@@ -804,11 +804,11 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     }
   }
 
-  const produce = [...lists.produce.values()];
-  const dairy = [...lists.dairy.values()];
-  const plantBased = [...lists.plantBased.values()];
-  const dryGoods = [...lists.dryGoods.values()];
-  const spicesCondiments = [...lists.spicesCondiments.values()];
+  const produce = lists.produce;
+  const dairy = lists.dairy;
+  const plantBased = lists.plantBased;
+  const dryGoods = lists.dryGoods;
+  const spicesCondiments = lists.spicesCondiments;
   const allShoppingItems = [...produce, ...dairy, ...plantBased, ...dryGoods, ...spicesCondiments];
   const totalCost = allShoppingItems.reduce((sum, item) => sum + item.cost, 0);
 
