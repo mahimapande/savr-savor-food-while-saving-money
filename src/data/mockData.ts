@@ -249,8 +249,8 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     ],
   },
   {
-    id: "peanut-noodles",
-    name: "Peanut Noodles",
+    id: "tahini-noodles",
+    name: "Tahini Noodles",
     duration: "20 min",
     servings: 2,
     tags: ["20 mins", "2 servings", "Vegan"],
@@ -258,7 +258,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     estimatedCost: "$3.70",
     ingredients: [
       { name: "8 oz rice noodles", pantry: true, cost: 1.29 },
-      { name: "3 tbsp peanut butter", cost: 0.30 },
+      { name: "2 tbsp tahini", cost: 0.40 },
       { name: "2 tbsp soy sauce", cost: 0.15 },
       { name: "1 lime", cost: 0.25 },
       { name: "1 medium carrot, shredded", cost: 0.30 },
@@ -266,7 +266,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     ],
     steps: [
       "Cook noodles, drain and rinse",
-      "Whisk peanut butter, soy sauce, lime juice",
+      "Whisk tahini, soy sauce, lime juice",
       "Toss noodles with sauce",
       "Top with carrot & green onions",
     ],
@@ -678,14 +678,14 @@ function findSharedIngredients(meals: Omit<Meal, "day">[]): Map<string, number> 
 // Categorization keywords
 const DAIRY_KEYWORDS = ["cheese", "milk", "butter", "yogurt", "cream", "eggs", "egg", "mozzarella", "parmesan", "feta", "cheddar"];
 const PLANT_BASED_KEYWORDS = ["tofu", "tempeh", "coconut milk", "oat milk", "almond milk", "soy milk", "plant-based"];
-const NUT_BUTTER_KEYWORDS = ["peanut butter", "almond butter", "cashew butter", "nut butter"];
-const DRY_GOODS_KEYWORDS = ["rice", "pasta", "noodle", "spaghetti", "penne", "beans", "chickpeas", "lentils", "flour", "sugar", "tortilla", "flatbread", "pita", "naan", "broth", "peanut butter", "almond butter", "cashew butter", "nut butter", "hummus", "olives", "peas", "canned", "bread"];
+const NUT_BUTTER_KEYWORDS = ["almond butter", "cashew butter", "nut butter", "tahini"];
+const DRY_GOODS_KEYWORDS = ["rice", "pasta", "noodle", "spaghetti", "penne", "beans", "chickpeas", "lentils", "flour", "sugar", "tortilla", "flatbread", "pita", "naan", "broth", "almond butter", "cashew butter", "nut butter", "tahini", "hummus", "olives", "peas", "canned", "bread"];
 const SPICE_KEYWORDS = ["oil", "sauce", "seasoning", "spice", "cumin", "chili powder", "italian seasoning", "ginger", "balsamic", "sesame oil", "hot sauce", "soy sauce", "vinegar", "mustard", "capers"];
 
 export function categorizeItem(name: string): keyof Omit<ShoppingList, "totalItems" | "estimatedCost"> {
   const lower = name.toLowerCase();
   if (PLANT_BASED_KEYWORDS.some((k) => lower.includes(k))) return "plantBased";
-  // Check nut butters before dairy so "peanut butter" doesn't match "butter"
+  // Check nut butters / tahini before dairy so they don't match "butter"
   if (NUT_BUTTER_KEYWORDS.some((k) => lower.includes(k))) return "dryGoods";
   if (DRY_GOODS_KEYWORDS.some((k) => lower.includes(k))) return "dryGoods";
   if (DAIRY_KEYWORDS.some((k) => lower.includes(k))) return "dairy";

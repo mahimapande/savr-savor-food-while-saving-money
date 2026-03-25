@@ -63,6 +63,8 @@ const Index = () => {
       preference,
     };
 
+    console.log('generatePlan inputs:', inputs);
+    localStorage.clear();
     const generated = generatePlan(inputs);
     localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(generated));
     localStorage.setItem(
