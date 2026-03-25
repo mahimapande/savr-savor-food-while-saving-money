@@ -738,10 +738,10 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const reusedIngredients = reuseEntries.reduce((sum, [, count]) => sum + count, 0);
   const reusePercent = totalIngredients > 0 ? Math.round((reusedIngredients / totalIngredients) * 100) : 0;
 
-  // Normalize user pantry items for matching
-  const userPantrySet = new Set(
-    (inputs?.pantryItems || []).map((p) => p.toLowerCase().trim())
-  );
+  // Normalize user pantry items for matching (word-boundary aware)
+  const userPantryList = (inputs?.pantryItems || []).map((p) => p.toLowerCase().trim());
+
+  console.log('SCREEN 1 PANTRY INPUT:', inputs?.pantryItems);
 
   const meals: Meal[] = selected.map((recipe, i) => {
     const badges: string[] = [];
