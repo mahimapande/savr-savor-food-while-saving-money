@@ -152,10 +152,16 @@ const Plan = () => {
   const [haveItems, setHaveItems] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem(HAVE_STORAGE_KEY);
-      if (saved) return new Set(JSON.parse(saved));
+      if (saved) {
+        const items = new Set<string>(JSON.parse(saved));
+        console.log('Screen 2 pantry loaded from localStorage:', [...items]);
+        return items;
+      }
     } catch { /* ignore */ }
     // Initialize from plan's pantry items (from Screen 1)
-    return new Set(plan.pantryItems.map((i) => i.name));
+    const items = new Set(plan.pantryItems.map((i) => i.name));
+    console.log('Screen 2 pantry loaded from plan:', [...items]);
+    return items;
   });
 
   useEffect(() => {
