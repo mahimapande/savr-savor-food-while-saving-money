@@ -163,10 +163,10 @@ const Plan = () => {
     });
   }, []);
 
-  const moveToShopping = useCallback((itemName: string) => {
+  const moveToShopping = useCallback((itemNames: string[]) => {
     setHaveItems((prev) => {
       const next = new Set(prev);
-      next.delete(itemName);
+      itemNames.forEach((n) => next.delete(n));
       return next;
     });
   }, []);
