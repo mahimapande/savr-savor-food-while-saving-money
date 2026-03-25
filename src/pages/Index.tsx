@@ -63,10 +63,14 @@ const Index = () => {
 
   const addCustomPantry = () => {
     const trimmed = customPantry.trim();
-    if (trimmed && !PANTRY_DEFAULTS.some((d) => d.name.toLowerCase() === trimmed.toLowerCase()) && !customItems.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
-      const newItem = { name: trimmed, placeholder: `e.g. amount of ${trimmed.toLowerCase()}` };
-      setCustomItems((prev) => [...prev, newItem]);
+    if (!trimmed) return;
+    // Store the full string directly (e.g. "3 tomatoes") — no separate amount needed
+    const alreadyExists = [...pantryChecked].some((p) => p.toLowerCase() === trimmed.toLowerCase())
+      || PANTRY_DEFAULTS.some((d) => d.name.toLowerCase() === trimmed.toLowerCase());
+    if (!alreadyExists) {
       setPantryChecked((prev) => new Set(prev).add(trimmed));
+      // Put the full string into amounts so buildPantryItems uses it as-is
+      setPantryAmounts((prev) => ({ ...prev, [trimmed]: trimmed }));
       setCustomPantry("");
     }
   };
