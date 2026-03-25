@@ -112,7 +112,14 @@ function buildSections(items: ShoppingListItem[]): CategorizedSections[] {
 const Plan = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const formInputs = location.state as FormInputs | undefined;
+  const formInputs = useMemo<FormInputs | undefined>(() => {
+    if (location.state) return location.state as FormInputs;
+    try {
+      const saved = localStorage.getItem("formInputs");
+      if (saved) return JSON.parse(saved) as FormInputs;
+    } catch { /* ignore */ }
+    return undefined;
+  }, [location.state]);
 
   const plan = useMemo<PlanData>(() => {
     const stored = localStorage.getItem(WEEKLY_PLAN_KEY);
