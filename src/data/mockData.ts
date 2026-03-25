@@ -778,7 +778,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     userPantryList.map((item) => [item, 0])
   );
 
-  console.log('SCREEN 1 PANTRY INPUT:', userPantryList);
+
 
   const lists: Record<string, ShoppingListItem[]> = {
     produce: [],
@@ -792,7 +792,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     meal.ingredients.map((ing) => ({ name: ing.name, cost: ing.cost }))
   );
 
-  console.log('ALL RECIPE INGREDIENTS:', allIngredients.map((item) => item.name));
+
 
   for (const ing of allIngredients) {
     const lower = ing.name.toLowerCase();
@@ -829,8 +829,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const lowCost = Math.floor(totalCost * 0.9);
   const highCost = Math.ceil(totalCost * 1.1);
 
-  console.log('FINAL PANTRY:', pantryItemsList.map((i) => i.name));
-  console.log('FINAL SHOPPING:', allShoppingItems.map((i) => i.name));
+
 
   return {
     metrics: {

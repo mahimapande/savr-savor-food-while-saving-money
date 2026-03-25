@@ -153,15 +153,10 @@ const Plan = () => {
     try {
       const saved = localStorage.getItem(HAVE_STORAGE_KEY);
       if (saved) {
-        const items = new Set<string>(JSON.parse(saved));
-        console.log('Screen 2 pantry loaded from localStorage:', [...items]);
-        return items;
+        return new Set<string>(JSON.parse(saved));
       }
     } catch { /* ignore */ }
-    // Initialize from plan's pantry items (from Screen 1)
-    const items = new Set(plan.pantryItems.map((i) => i.name));
-    console.log('Screen 2 pantry loaded from plan:', [...items]);
-    return items;
+    return new Set(plan.pantryItems.map((i) => i.name));
   });
 
   useEffect(() => {
@@ -278,17 +273,14 @@ const Plan = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Shopping List */}
           <Card className="p-4 max-h-[60vh] overflow-hidden flex flex-col border-accent/30 bg-savr-orange-light/40">
-            <div className="mb-3 flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5 text-accent" />
-                <h2 className="font-semibold text-foreground">
-                  Shopping list ({shoppingItems.length})
-                </h2>
-                <Badge variant="secondary" className="ml-auto bg-accent/10 text-accent border-0">
-                  Est. ${Math.round(shoppingCost)}
-                </Badge>
-              </div>
-              <p className="text-[10px] text-muted-foreground/60">Recipe needs minus pantry: {shoppingItems.length} items</p>
+            <div className="mb-3 flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-accent" />
+              <h2 className="font-semibold text-foreground">
+                Shopping list ({shoppingItems.length})
+              </h2>
+              <Badge variant="secondary" className="ml-auto bg-accent/10 text-accent border-0">
+                Est. ${Math.round(shoppingCost)}
+              </Badge>
             </div>
             <div className="overflow-y-auto flex-1 -mr-2 pr-2">
               {shoppingSections.map((section) => {
@@ -328,14 +320,11 @@ const Plan = () => {
 
           {/* Pantry List */}
           <Card className="p-4 max-h-[60vh] overflow-hidden flex flex-col border-primary/30 bg-savr-green-light/40">
-            <div className="mb-3 flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold text-foreground">
-                  Pantry ({pantryListItems.length} items)
-                </h2>
-              </div>
-              <p className="text-[10px] text-muted-foreground/60">From your Screen 1 input: {plan.pantryItems.length} items</p>
+            <div className="mb-3 flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold text-foreground">
+                Pantry ({pantryListItems.length} items)
+              </h2>
             </div>
             <div className="overflow-y-auto flex-1 -mr-2 pr-2">
               {pantrySections.map((section) => {
