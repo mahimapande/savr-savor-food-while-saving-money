@@ -155,8 +155,12 @@ const Plan = () => {
     localStorage.setItem(HAVE_STORAGE_KEY, JSON.stringify([...haveItems]));
   }, [haveItems]);
 
-  const moveToHave = useCallback((itemName: string) => {
-    setHaveItems((prev) => new Set(prev).add(itemName));
+  const moveToHave = useCallback((itemNames: string[]) => {
+    setHaveItems((prev) => {
+      const next = new Set(prev);
+      itemNames.forEach((n) => next.add(n));
+      return next;
+    });
   }, []);
 
   const moveToShopping = useCallback((itemName: string) => {
