@@ -112,7 +112,14 @@ function buildSections(items: ShoppingListItem[]): CategorizedSections[] {
 const Plan = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const formInputs = location.state as FormInputs | undefined;
+  const formInputs = useMemo<FormInputs | undefined>(() => {
+    if (location.state) return location.state as FormInputs;
+    try {
+      const saved = localStorage.getItem("formInputs");
+      if (saved) return JSON.parse(saved) as FormInputs;
+    } catch { /* ignore */ }
+    return undefined;
+  }, [location.state]);
 
   const plan = useMemo<PlanData>(() => {
     const stored = localStorage.getItem(WEEKLY_PLAN_KEY);
@@ -145,10 +152,16 @@ const Plan = () => {
   const [haveItems, setHaveItems] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem(HAVE_STORAGE_KEY);
-      if (saved) return new Set(JSON.parse(saved));
+      if (saved) {
+        const items = new Set<string>(JSON.parse(saved));
+        console.log('Screen 2 pantry loaded from localStorage:', [...items]);
+        return items;
+      }
     } catch { /* ignore */ }
     // Initialize from plan's pantry items (from Screen 1)
-    return new Set(plan.pantryItems.map((i) => i.name));
+    const items = new Set(plan.pantryItems.map((i) => i.name));
+    console.log('Screen 2 pantry loaded from plan:', [...items]);
+    return items;
   });
 
   useEffect(() => {

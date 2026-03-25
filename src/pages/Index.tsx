@@ -63,10 +63,13 @@ const Index = () => {
       preference,
     };
 
-    console.log('generatePlan inputs:', inputs);
+    console.log('Screen 1 form submitted:', inputs);
+    console.log('Screen 1 pantry selections:', inputs.pantryItems);
     localStorage.clear();
     const generated = generatePlan(inputs);
+    console.log('Generated plan pantryItems:', generated.pantryItems);
     localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(generated));
+    localStorage.setItem("formInputs", JSON.stringify(inputs));
     localStorage.setItem(
       HAVE_STORAGE_KEY,
       JSON.stringify(generated.pantryItems.map((item) => item.name))
