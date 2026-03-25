@@ -249,8 +249,8 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     ],
   },
   {
-    id: "peanut-noodles",
-    name: "Peanut Noodles",
+    id: "tahini-noodles",
+    name: "Tahini Noodles",
     duration: "20 min",
     servings: 2,
     tags: ["20 mins", "2 servings", "Vegan"],
@@ -258,7 +258,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     estimatedCost: "$3.70",
     ingredients: [
       { name: "8 oz rice noodles", pantry: true, cost: 1.29 },
-      { name: "3 tbsp peanut butter", cost: 0.30 },
+      { name: "2 tbsp tahini", cost: 0.40 },
       { name: "2 tbsp soy sauce", cost: 0.15 },
       { name: "1 lime", cost: 0.25 },
       { name: "1 medium carrot, shredded", cost: 0.30 },
@@ -266,7 +266,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
     ],
     steps: [
       "Cook noodles, drain and rinse",
-      "Whisk peanut butter, soy sauce, lime juice",
+      "Whisk tahini, soy sauce, lime juice",
       "Toss noodles with sauce",
       "Top with carrot & green onions",
     ],
