@@ -738,10 +738,10 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const reusedIngredients = reuseEntries.reduce((sum, [, count]) => sum + count, 0);
   const reusePercent = totalIngredients > 0 ? Math.round((reusedIngredients / totalIngredients) * 100) : 0;
 
-  // Normalize user pantry items for matching
-  const userPantrySet = new Set(
-    (inputs?.pantryItems || []).map((p) => p.toLowerCase().trim())
-  );
+  // Normalize user pantry items for matching (word-boundary aware)
+  const userPantryList = (inputs?.pantryItems || []).map((p) => p.toLowerCase().trim());
+
+  console.log('SCREEN 1 PANTRY INPUT:', inputs?.pantryItems);
 
   const meals: Meal[] = selected.map((recipe, i) => {
     const badges: string[] = [];
@@ -790,7 +790,11 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   for (const meal of meals) {
     for (const ing of meal.ingredients) {
       const lower = ing.name.toLowerCase();
-      const isUserPantry = [...userPantrySet].some((p) => lower.includes(p));
+      // Word-boundary match: "eggs" matches "3 large eggs" but "milk" does NOT match "coconut milk"
+      const isUserPantry = userPantryList.some((p) => {
+        const regex = new RegExp(`(^|\\s|\\d)${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(s|es)?($|\\s|,)`, 'i');
+        return regex.test(lower);
+      });
 
       if (isUserPantry) {
         if (!seenPantry.has(ing.name)) {
@@ -814,6 +818,10 @@ export function generatePlan(inputs?: FormInputs): PlanData {
 
   const lowCost = Math.floor(totalCost * 0.9);
   const highCost = Math.ceil(totalCost * 1.1);
+
+  console.log('ALL RECIPE INGREDIENTS:', allShoppingItems.map(i => i.name));
+  console.log('FINAL PANTRY:', pantryItemsList.map(i => i.name));
+  console.log('FINAL SHOPPING:', allShoppingItems.length, 'items');
 
   return {
     metrics: {
