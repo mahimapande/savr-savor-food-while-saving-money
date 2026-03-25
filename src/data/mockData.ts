@@ -790,7 +790,11 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   for (const meal of meals) {
     for (const ing of meal.ingredients) {
       const lower = ing.name.toLowerCase();
-      const isUserPantry = [...userPantrySet].some((p) => lower.includes(p));
+      // Word-boundary match: "eggs" matches "3 large eggs" but "milk" does NOT match "coconut milk"
+      const isUserPantry = userPantryList.some((p) => {
+        const regex = new RegExp(`(^|\\s|\\d)${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(s|es)?($|\\s|,)`, 'i');
+        return regex.test(lower);
+      });
 
       if (isUserPantry) {
         if (!seenPantry.has(ing.name)) {
