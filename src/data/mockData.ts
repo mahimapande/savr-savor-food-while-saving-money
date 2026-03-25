@@ -685,7 +685,7 @@ const SPICE_KEYWORDS = ["oil", "sauce", "seasoning", "spice", "cumin", "chili po
 export function categorizeItem(name: string): keyof Omit<ShoppingList, "totalItems" | "estimatedCost"> {
   const lower = name.toLowerCase();
   if (PLANT_BASED_KEYWORDS.some((k) => lower.includes(k))) return "plantBased";
-  // Check nut butters before dairy so "peanut butter" doesn't match "butter"
+  // Check nut butters / tahini before dairy so they don't match "butter"
   if (NUT_BUTTER_KEYWORDS.some((k) => lower.includes(k))) return "dryGoods";
   if (DRY_GOODS_KEYWORDS.some((k) => lower.includes(k))) return "dryGoods";
   if (DAIRY_KEYWORDS.some((k) => lower.includes(k))) return "dairy";
