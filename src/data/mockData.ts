@@ -778,7 +778,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     userPantryList.map((item) => [item, 0])
   );
 
-  console.log('SCREEN 1 PANTRY INPUT:', userPantryList);
+
 
   const lists: Record<string, ShoppingListItem[]> = {
     produce: [],
