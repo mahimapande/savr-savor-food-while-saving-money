@@ -320,14 +320,11 @@ const Plan = () => {
 
           {/* Pantry List */}
           <Card className="p-4 max-h-[60vh] overflow-hidden flex flex-col border-primary/30 bg-savr-green-light/40">
-            <div className="mb-3 flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold text-foreground">
-                  Pantry ({pantryListItems.length} items)
-                </h2>
-              </div>
-              <p className="text-[10px] text-muted-foreground/60">From your Screen 1 input: {plan.pantryItems.length} items</p>
+            <div className="mb-3 flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold text-foreground">
+                Pantry ({pantryListItems.length} items)
+              </h2>
             </div>
             <div className="overflow-y-auto flex-1 -mr-2 pr-2">
               {pantrySections.map((section) => {
