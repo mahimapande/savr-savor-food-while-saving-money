@@ -193,7 +193,7 @@ const Index = () => {
           <div className="space-y-3">
             <Label>Pantry items on hand</Label>
             <div className="space-y-3">
-              {[...PANTRY_DEFAULTS, ...customItems].map((item) => (
+              {PANTRY_DEFAULTS.map((item) => (
                 <div key={item.name} className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -216,9 +216,38 @@ const Index = () => {
                 </div>
               ))}
             </div>
+            {/* Custom items shown as removable badges */}
+            {[...pantryChecked].filter((name) => !PANTRY_DEFAULTS.some((d) => d.name === name)).length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {[...pantryChecked]
+                  .filter((name) => !PANTRY_DEFAULTS.some((d) => d.name === name))
+                  .map((name) => (
+                    <Badge
+                      key={name}
+                      variant="default"
+                      className="cursor-pointer select-none px-3 py-1.5 text-sm"
+                      onClick={() => {
+                        setPantryChecked((prev) => {
+                          const next = new Set(prev);
+                          next.delete(name);
+                          return next;
+                        });
+                        setPantryAmounts((prev) => {
+                          const next = { ...prev };
+                          delete next[name];
+                          return next;
+                        });
+                      }}
+                    >
+                      {name}
+                      <X className="ml-1 h-3 w-3" />
+                    </Badge>
+                  ))}
+              </div>
+            )}
             <div className="flex gap-2">
               <Input
-                placeholder="Add item"
+                placeholder="e.g. 3 tomatoes, 1 cup rice"
                 value={customPantry}
                 onChange={(e) => setCustomPantry(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomPantry())}
