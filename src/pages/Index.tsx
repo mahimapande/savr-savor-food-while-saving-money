@@ -28,7 +28,6 @@ const Index = () => {
   // pantryChecked tracks which items are toggled on; pantryAmounts stores the user-typed quantity string
   const [pantryChecked, setPantryChecked] = useState<Set<string>>(new Set());
   const [pantryAmounts, setPantryAmounts] = useState<Record<string, string>>({});
-  const [customItems, setCustomItems] = useState<{ name: string; placeholder: string }[]>([]);
   const [customPantry, setCustomPantry] = useState("");
   const [preference, setPreference] = useState("balanced");
 
