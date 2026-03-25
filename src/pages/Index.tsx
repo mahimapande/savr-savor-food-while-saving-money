@@ -45,17 +45,38 @@ const Index = () => {
     }
   };
 
-  const togglePantry = (item: string) => {
-    setPantryItems((prev) =>
-      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
-    );
+  const togglePantry = (name: string) => {
+    setPantryChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
+      return next;
+    });
+  };
+
+  const updateAmount = (name: string, value: string) => {
+    setPantryAmounts((prev) => ({ ...prev, [name]: value }));
   };
 
   const addCustomPantry = () => {
-    if (customPantry.trim() && !pantryItems.includes(customPantry.trim())) {
-      setPantryItems((prev) => [...prev, customPantry.trim()]);
+    const trimmed = customPantry.trim();
+    if (trimmed && !PANTRY_DEFAULTS.some((d) => d.name.toLowerCase() === trimmed.toLowerCase()) && !customItems.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
+      const newItem = { name: trimmed, placeholder: `e.g. amount of ${trimmed.toLowerCase()}` };
+      setCustomItems((prev) => [...prev, newItem]);
+      setPantryChecked((prev) => new Set(prev).add(trimmed));
       setCustomPantry("");
     }
+  };
+
+  // Build the final pantryItems array from checked items + their amounts
+  const buildPantryItems = (): string[] => {
+    return [...pantryChecked].map((name) => {
+      const amount = (pantryAmounts[name] || "").trim();
+      return amount || name; // use the amount string if provided, otherwise just the name
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
