@@ -271,30 +271,33 @@ const Plan = () => {
               </Badge>
             </div>
             <div className="overflow-y-auto flex-1 -mr-2 pr-2">
-              {shoppingSections.map((section) => (
-                <div key={section.label} className="mb-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
-                    {section.label}
-                  </p>
-                  <ul className="space-y-1 text-sm text-foreground">
-                    {section.items.map((item) => (
-                      <li key={item.name} className="flex items-center gap-2 group">
-                        <span className="flex-1 truncate">{item.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-1.5 text-xs text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 shrink-0 transition-opacity hover:text-primary hover:bg-primary/10"
-                          onClick={() => moveToHave(item.name)}
-                          title="I have this"
-                        >
-                          <ArrowRight className="h-3 w-3 mr-0.5" />
-                          Have it
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+              {shoppingSections.map((section) => {
+                const consolidated = consolidateItems(section.items);
+                return (
+                  <div key={section.label} className="mb-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
+                      {section.label}
+                    </p>
+                    <ul className="space-y-1 text-sm text-foreground">
+                      {consolidated.map((item) => (
+                        <li key={item.displayName} className="flex items-center gap-2 group">
+                          <span className="flex-1 truncate">{item.displayName}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-1.5 text-xs text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 shrink-0 transition-opacity hover:text-primary hover:bg-primary/10"
+                            onClick={() => moveToHave(item.originalName)}
+                            title="I have this"
+                          >
+                            <ArrowRight className="h-3 w-3 mr-0.5" />
+                            Have it
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
               {shoppingSections.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   You have everything you need! 🎉
