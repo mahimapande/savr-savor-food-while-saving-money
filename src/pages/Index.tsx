@@ -28,7 +28,6 @@ const Index = () => {
   // pantryChecked tracks which items are toggled on; pantryAmounts stores the user-typed quantity string
   const [pantryChecked, setPantryChecked] = useState<Set<string>>(new Set());
   const [pantryAmounts, setPantryAmounts] = useState<Record<string, string>>({});
-  const [customItems, setCustomItems] = useState<{ name: string; placeholder: string }[]>([]);
   const [customPantry, setCustomPantry] = useState("");
   const [preference, setPreference] = useState("balanced");
 
@@ -63,10 +62,14 @@ const Index = () => {
 
   const addCustomPantry = () => {
     const trimmed = customPantry.trim();
-    if (trimmed && !PANTRY_DEFAULTS.some((d) => d.name.toLowerCase() === trimmed.toLowerCase()) && !customItems.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
-      const newItem = { name: trimmed, placeholder: `e.g. amount of ${trimmed.toLowerCase()}` };
-      setCustomItems((prev) => [...prev, newItem]);
+    if (!trimmed) return;
+    // Store the full string directly (e.g. "3 tomatoes") — no separate amount needed
+    const alreadyExists = [...pantryChecked].some((p) => p.toLowerCase() === trimmed.toLowerCase())
+      || PANTRY_DEFAULTS.some((d) => d.name.toLowerCase() === trimmed.toLowerCase());
+    if (!alreadyExists) {
       setPantryChecked((prev) => new Set(prev).add(trimmed));
+      // Put the full string into amounts so buildPantryItems uses it as-is
+      setPantryAmounts((prev) => ({ ...prev, [trimmed]: trimmed }));
       setCustomPantry("");
     }
   };
@@ -190,7 +193,7 @@ const Index = () => {
           <div className="space-y-3">
             <Label>Pantry items on hand</Label>
             <div className="space-y-3">
-              {[...PANTRY_DEFAULTS, ...customItems].map((item) => (
+              {PANTRY_DEFAULTS.map((item) => (
                 <div key={item.name} className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -213,9 +216,38 @@ const Index = () => {
                 </div>
               ))}
             </div>
+            {/* Custom items shown as removable badges */}
+            {[...pantryChecked].filter((name) => !PANTRY_DEFAULTS.some((d) => d.name === name)).length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {[...pantryChecked]
+                  .filter((name) => !PANTRY_DEFAULTS.some((d) => d.name === name))
+                  .map((name) => (
+                    <Badge
+                      key={name}
+                      variant="default"
+                      className="cursor-pointer select-none px-3 py-1.5 text-sm"
+                      onClick={() => {
+                        setPantryChecked((prev) => {
+                          const next = new Set(prev);
+                          next.delete(name);
+                          return next;
+                        });
+                        setPantryAmounts((prev) => {
+                          const next = { ...prev };
+                          delete next[name];
+                          return next;
+                        });
+                      }}
+                    >
+                      {name}
+                      <X className="ml-1 h-3 w-3" />
+                    </Badge>
+                  ))}
+              </div>
+            )}
             <div className="flex gap-2">
               <Input
-                placeholder="Add item"
+                placeholder="e.g. 3 tomatoes, 1 cup rice"
                 value={customPantry}
                 onChange={(e) => setCustomPantry(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomPantry())}
