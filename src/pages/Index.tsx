@@ -10,7 +10,11 @@ import { generatePlan, FormInputs } from "@/data/mockData";
 import { UtensilsCrossed, Plus, X } from "lucide-react";
 
 const CUISINES = ["Italian", "Thai", "American"];
-const PANTRY_DEFAULTS = ["Eggs", "Milk", "Butter"];
+const PANTRY_DEFAULTS = [
+  { name: "Eggs", placeholder: "e.g. 6 large eggs" },
+  { name: "Milk", placeholder: "e.g. 1 gallon milk" },
+  { name: "Butter", placeholder: "e.g. 1 stick butter" },
+];
 const WEEKLY_PLAN_KEY = "weeklyPlan";
 const HAVE_STORAGE_KEY = "savr-have-items";
 
