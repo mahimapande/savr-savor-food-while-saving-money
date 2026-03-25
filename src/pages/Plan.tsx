@@ -41,7 +41,7 @@ function parseIngredient(item: ShoppingListItem): ParsedItem {
 interface ConsolidatedItem {
   displayName: string;
   cost: number;
-  originalName: string; // key for have/need operations
+  originalNames: string[]; // all original item names in this group
 }
 
 function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
@@ -54,11 +54,12 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
     if (existing && parsed.unit !== "") {
       existing.qty += parsed.qty;
       existing.cost += item.cost;
-      existing.originalNames.push(item.name);
+      if (!existing.originalNames.includes(item.name)) {
+        existing.originalNames.push(item.name);
+      }
     } else if (!existing) {
       groups.set(key, { qty: parsed.qty, unit: parsed.unit, base: parsed.base, cost: item.cost, originalNames: [item.name] });
     } else {
-      // unit is empty and already exists - keep separate by using unique key
       const altKey = `${parsed.base}||${parsed.unit}||${item.name}`;
       groups.set(altKey, { qty: parsed.qty, unit: parsed.unit, base: parsed.base, cost: item.cost, originalNames: [item.name] });
     }
@@ -67,15 +68,14 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
   return [...groups.values()].map((g) => {
     let displayName: string;
     if (g.unit) {
-      const unitDisplay = g.qty > 1 && !g.unit.endsWith("s") && g.unit !== "oz" ? g.unit : g.unit;
-      displayName = `${g.qty % 1 === 0 ? g.qty : g.qty.toFixed(1)} ${unitDisplay} ${g.base}`;
+      displayName = `${g.qty % 1 === 0 ? g.qty : g.qty.toFixed(1)} ${g.unit} ${g.base}`;
     } else {
       displayName = g.originalNames[0];
     }
     return {
       displayName,
       cost: g.cost,
-      originalName: g.originalNames[0], // primary key for interactions
+      originalNames: g.originalNames,
     };
   });
 }
