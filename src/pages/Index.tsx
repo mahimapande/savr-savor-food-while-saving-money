@@ -87,7 +87,7 @@ const Index = () => {
       meals,
       dietary,
       cuisines,
-      pantryItems,
+      pantryItems: buildPantryItems(),
       preference,
     };
 
