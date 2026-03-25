@@ -189,25 +189,33 @@ const Index = () => {
           {/* Pantry */}
           <div className="space-y-3">
             <Label>Pantry items on hand</Label>
-            <div className="space-y-2">
-              {[...PANTRY_DEFAULTS, ...pantryItems.filter((i) => !PANTRY_DEFAULTS.includes(i))].map(
-                (item) => (
-                  <div key={item} className="flex items-center gap-2">
+            <div className="space-y-3">
+              {[...PANTRY_DEFAULTS, ...customItems].map((item) => (
+                <div key={item.name} className="space-y-1.5">
+                  <div className="flex items-center gap-2">
                     <Checkbox
-                      id={`pantry-${item}`}
-                      checked={pantryItems.includes(item)}
-                      onCheckedChange={() => togglePantry(item)}
+                      id={`pantry-${item.name}`}
+                      checked={pantryChecked.has(item.name)}
+                      onCheckedChange={() => togglePantry(item.name)}
                     />
-                    <Label htmlFor={`pantry-${item}`} className="font-normal">
-                      {item}
+                    <Label htmlFor={`pantry-${item.name}`} className="font-normal">
+                      {item.name}
                     </Label>
                   </div>
-                )
-              )}
+                  {pantryChecked.has(item.name) && (
+                    <Input
+                      placeholder={item.placeholder}
+                      value={pantryAmounts[item.name] || ""}
+                      onChange={(e) => updateAmount(item.name, e.target.value)}
+                      className="ml-6 max-w-xs text-sm h-8"
+                    />
+                  )}
+                </div>
+              ))}
             </div>
             <div className="flex gap-2">
               <Input
-                placeholder="Add items"
+                placeholder="Add item"
                 value={customPantry}
                 onChange={(e) => setCustomPantry(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomPantry())}
