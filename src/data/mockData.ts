@@ -773,12 +773,26 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const userPantryList = Array.from(
     new Set((inputs?.pantryItems || []).map((p) => p.trim()).filter(Boolean))
   );
-  const pantryMatchers = userPantryList.map((raw) => ({ raw, normalized: raw.toLowerCase() }));
+
+  // Extract base ingredient name from user input like "6 large eggs" → "eggs"
+  const STRIP_QTY_RE = /^[\d./]+\s*/;
+  const STRIP_UNIT_RE = /^(cups?|gallons?|sticks?|cans?|tbsp|tsp|oz|lbs?|large|small|medium|dozen|bunch(es)?|cloves?|blocks?|bags?|boxes?|bottles?|jars?|cartons?|pints?|quarts?|liters?)\s+/i;
+
+  function extractBaseName(input: string): string {
+    let s = input.toLowerCase().trim();
+    s = s.replace(STRIP_QTY_RE, "").trim();       // remove leading numbers
+    s = s.replace(STRIP_UNIT_RE, "").trim();       // remove unit word
+    s = s.replace(STRIP_UNIT_RE, "").trim();       // second pass for "6 large eggs" → strip "large"
+    return s || input.toLowerCase().trim();         // fallback to original
+  }
+
+  const pantryMatchers = userPantryList.map((raw) => ({
+    raw,
+    baseName: extractBaseName(raw),
+  }));
   const pantryCostAccumulator = new Map<string, number>(
     userPantryList.map((item) => [item, 0])
   );
-
-
 
   const lists: Record<string, ShoppingListItem[]> = {
     produce: [],
@@ -792,12 +806,10 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     meal.ingredients.map((ing) => ({ name: ing.name, cost: ing.cost }))
   );
 
-
-
   for (const ing of allIngredients) {
     const lower = ing.name.toLowerCase();
-    const matchedPantry = pantryMatchers.find(({ normalized }) => {
-      const regex = new RegExp(`(^|\\s|\\d)${normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(s|es)?($|\\s|,)`, 'i');
+    const matchedPantry = pantryMatchers.find(({ baseName }) => {
+      const regex = new RegExp(`(^|\\s|\\d)${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(s|es)?($|\\s|,)`, 'i');
       return regex.test(lower);
     });
 
