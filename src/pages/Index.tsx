@@ -10,7 +10,11 @@ import { generatePlan, FormInputs } from "@/data/mockData";
 import { UtensilsCrossed, Plus, X } from "lucide-react";
 
 const CUISINES = ["Italian", "Thai", "American"];
-const PANTRY_DEFAULTS = ["Eggs", "Milk", "Butter"];
+const PANTRY_DEFAULTS = [
+  { name: "Eggs", placeholder: "e.g. 6 large eggs" },
+  { name: "Milk", placeholder: "e.g. 1 gallon milk" },
+  { name: "Butter", placeholder: "e.g. 1 stick butter" },
+];
 const WEEKLY_PLAN_KEY = "weeklyPlan";
 const HAVE_STORAGE_KEY = "savr-have-items";
 
@@ -21,7 +25,10 @@ const Index = () => {
   const [dietary, setDietary] = useState("");
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [customCuisine, setCustomCuisine] = useState("");
-  const [pantryItems, setPantryItems] = useState<string[]>([]);
+  // pantryChecked tracks which items are toggled on; pantryAmounts stores the user-typed quantity string
+  const [pantryChecked, setPantryChecked] = useState<Set<string>>(new Set());
+  const [pantryAmounts, setPantryAmounts] = useState<Record<string, string>>({});
+  const [customItems, setCustomItems] = useState<{ name: string; placeholder: string }[]>([]);
   const [customPantry, setCustomPantry] = useState("");
   const [preference, setPreference] = useState("balanced");
 
@@ -38,17 +45,38 @@ const Index = () => {
     }
   };
 
-  const togglePantry = (item: string) => {
-    setPantryItems((prev) =>
-      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
-    );
+  const togglePantry = (name: string) => {
+    setPantryChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
+      return next;
+    });
+  };
+
+  const updateAmount = (name: string, value: string) => {
+    setPantryAmounts((prev) => ({ ...prev, [name]: value }));
   };
 
   const addCustomPantry = () => {
-    if (customPantry.trim() && !pantryItems.includes(customPantry.trim())) {
-      setPantryItems((prev) => [...prev, customPantry.trim()]);
+    const trimmed = customPantry.trim();
+    if (trimmed && !PANTRY_DEFAULTS.some((d) => d.name.toLowerCase() === trimmed.toLowerCase()) && !customItems.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
+      const newItem = { name: trimmed, placeholder: `e.g. amount of ${trimmed.toLowerCase()}` };
+      setCustomItems((prev) => [...prev, newItem]);
+      setPantryChecked((prev) => new Set(prev).add(trimmed));
       setCustomPantry("");
     }
+  };
+
+  // Build the final pantryItems array from checked items + their amounts
+  const buildPantryItems = (): string[] => {
+    return [...pantryChecked].map((name) => {
+      const amount = (pantryAmounts[name] || "").trim();
+      return amount || name; // use the amount string if provided, otherwise just the name
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -59,7 +87,7 @@ const Index = () => {
       meals,
       dietary,
       cuisines,
-      pantryItems,
+      pantryItems: buildPantryItems(),
       preference,
     };
 
@@ -161,25 +189,33 @@ const Index = () => {
           {/* Pantry */}
           <div className="space-y-3">
             <Label>Pantry items on hand</Label>
-            <div className="space-y-2">
-              {[...PANTRY_DEFAULTS, ...pantryItems.filter((i) => !PANTRY_DEFAULTS.includes(i))].map(
-                (item) => (
-                  <div key={item} className="flex items-center gap-2">
+            <div className="space-y-3">
+              {[...PANTRY_DEFAULTS, ...customItems].map((item) => (
+                <div key={item.name} className="space-y-1.5">
+                  <div className="flex items-center gap-2">
                     <Checkbox
-                      id={`pantry-${item}`}
-                      checked={pantryItems.includes(item)}
-                      onCheckedChange={() => togglePantry(item)}
+                      id={`pantry-${item.name}`}
+                      checked={pantryChecked.has(item.name)}
+                      onCheckedChange={() => togglePantry(item.name)}
                     />
-                    <Label htmlFor={`pantry-${item}`} className="font-normal">
-                      {item}
+                    <Label htmlFor={`pantry-${item.name}`} className="font-normal">
+                      {item.name}
                     </Label>
                   </div>
-                )
-              )}
+                  {pantryChecked.has(item.name) && (
+                    <Input
+                      placeholder={item.placeholder}
+                      value={pantryAmounts[item.name] || ""}
+                      onChange={(e) => updateAmount(item.name, e.target.value)}
+                      className="ml-6 max-w-xs text-sm h-8"
+                    />
+                  )}
+                </div>
+              ))}
             </div>
             <div className="flex gap-2">
               <Input
-                placeholder="Add items"
+                placeholder="Add item"
                 value={customPantry}
                 onChange={(e) => setCustomPantry(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomPantry())}
