@@ -678,8 +678,8 @@ function findSharedIngredients(meals: Omit<Meal, "day">[]): Map<string, number> 
 // Categorization keywords
 const DAIRY_KEYWORDS = ["cheese", "milk", "butter", "yogurt", "cream", "eggs", "egg", "mozzarella", "parmesan", "feta", "cheddar"];
 const PLANT_BASED_KEYWORDS = ["tofu", "tempeh", "coconut milk", "oat milk", "almond milk", "soy milk", "plant-based"];
-const NUT_BUTTER_KEYWORDS = ["peanut butter", "almond butter", "cashew butter", "nut butter"];
-const DRY_GOODS_KEYWORDS = ["rice", "pasta", "noodle", "spaghetti", "penne", "beans", "chickpeas", "lentils", "flour", "sugar", "tortilla", "flatbread", "pita", "naan", "broth", "peanut butter", "almond butter", "cashew butter", "nut butter", "hummus", "olives", "peas", "canned", "bread"];
+const NUT_BUTTER_KEYWORDS = ["almond butter", "cashew butter", "nut butter", "tahini"];
+const DRY_GOODS_KEYWORDS = ["rice", "pasta", "noodle", "spaghetti", "penne", "beans", "chickpeas", "lentils", "flour", "sugar", "tortilla", "flatbread", "pita", "naan", "broth", "almond butter", "cashew butter", "nut butter", "tahini", "hummus", "olives", "peas", "canned", "bread"];
 const SPICE_KEYWORDS = ["oil", "sauce", "seasoning", "spice", "cumin", "chili powder", "italian seasoning", "ginger", "balsamic", "sesame oil", "hot sauce", "soy sauce", "vinegar", "mustard", "capers"];
 
 export function categorizeItem(name: string): keyof Omit<ShoppingList, "totalItems" | "estimatedCost"> {
