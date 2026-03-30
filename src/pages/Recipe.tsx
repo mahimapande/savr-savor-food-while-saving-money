@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, Check, Leaf, RefreshCw, DollarSign } from "lucide-react";
 
 const WEEKLY_PLAN_KEY = "weeklyPlan";
+const COOKED_MEALS_KEY = "savr-cooked-meals";
 
 const Recipe = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,7 +26,27 @@ const Recipe = () => {
   }, [formInputs]);
   const meal = plan.meals.find((m: any) => m.id === id);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
-  const [cooked, setCooked] = useState(false);
+
+  const [cooked, setCooked] = useState(() => {
+    try {
+      const saved = localStorage.getItem(COOKED_MEALS_KEY);
+      if (saved) return (JSON.parse(saved) as string[]).includes(id || "");
+    } catch {}
+    return false;
+  });
+
+  const toggleCooked = () => {
+    setCooked((prev) => {
+      const next = !prev;
+      try {
+        const saved = localStorage.getItem(COOKED_MEALS_KEY);
+        const set = new Set<string>(saved ? JSON.parse(saved) : []);
+        next ? set.add(id || "") : set.delete(id || "");
+        localStorage.setItem(COOKED_MEALS_KEY, JSON.stringify([...set]));
+      } catch {}
+      return next;
+    });
+  };
 
   if (!meal) {
     return (
