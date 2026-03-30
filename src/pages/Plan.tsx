@@ -265,13 +265,7 @@ const Plan = () => {
         </h2>
         <div className="mb-6 space-y-2">
           {plan.meals.map((meal) => {
-            const cookedMeals: string[] = (() => {
-              try {
-                const s = localStorage.getItem(COOKED_MEALS_KEY);
-                return s ? JSON.parse(s) : [];
-              } catch { return []; }
-            })();
-            const isCooked = cookedMeals.includes(meal.id);
+            const isCooked = cookedMeals.has(meal.id);
             return (
               <Card
                 key={meal.id}
