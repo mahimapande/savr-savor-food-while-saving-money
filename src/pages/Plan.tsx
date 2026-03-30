@@ -137,6 +137,21 @@ const Plan = () => {
     return generated;
   }, [formInputs]);
 
+  const [cookedMeals, setCookedMeals] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem(COOKED_MEALS_KEY);
+      return new Set<string>(s ? JSON.parse(s) : []);
+    } catch { return new Set(); }
+  });
+
+  // Re-read cooked state when returning from recipe page
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem(COOKED_MEALS_KEY);
+      setCookedMeals(new Set<string>(s ? JSON.parse(s) : []));
+    } catch {}
+  }, [location]);
+
   // All items from the plan (shopping + initial pantry)
   const allItems = useMemo(() => {
     const shopItems = [
