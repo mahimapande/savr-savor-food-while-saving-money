@@ -70,12 +70,6 @@ const Recipe = () => {
     <div className="min-h-screen bg-background pb-24">
       <div className="mx-auto max-w-lg px-4 py-6">
         {/* Header */}
-        <button
-          onClick={() => navigate("/plan")}
-          className="mb-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to week
-        </button>
 
         <h1 className="mb-2 font-serif text-2xl text-foreground">{meal.name}</h1>
 
