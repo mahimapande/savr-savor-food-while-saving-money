@@ -4,10 +4,11 @@ import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem } 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight, Package, ArrowRight, ArrowLeft, PiggyBank } from "lucide-react";
+import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight, Package, ArrowRight, ArrowLeft, PiggyBank, Check } from "lucide-react";
 
 const HAVE_STORAGE_KEY = "savr-have-items";
 const WEEKLY_PLAN_KEY = "weeklyPlan";
+const COOKED_MEALS_KEY = "savr-cooked-meals";
 
 // Parse "3 tbsp olive oil" → { qty: 3, unit: "tbsp", base: "olive oil" }
 const QTY_UNIT_RE = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s*(cups?|cans?|tbsp|tsp|oz|bunch(?:es)?|cloves?|large|small|medium|inch|blocks?|slices?|lbs?)\b\s*/i;
@@ -136,6 +137,21 @@ const Plan = () => {
     return generated;
   }, [formInputs]);
 
+  const [cookedMeals, setCookedMeals] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem(COOKED_MEALS_KEY);
+      return new Set<string>(s ? JSON.parse(s) : []);
+    } catch { return new Set(); }
+  });
+
+  // Re-read cooked state when returning from recipe page
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem(COOKED_MEALS_KEY);
+      setCookedMeals(new Set<string>(s ? JSON.parse(s) : []));
+    } catch {}
+  }, [location]);
+
   // All items from the plan (shopping + initial pantry)
   const allItems = useMemo(() => {
     const shopItems = [
@@ -248,25 +264,28 @@ const Plan = () => {
           This week at a glance
         </h2>
         <div className="mb-6 space-y-2">
-          {plan.meals.map((meal) => (
-            <Card
-              key={meal.id}
-              className="flex cursor-pointer items-center gap-3 p-4 transition-shadow hover:shadow-md active:scale-[0.99]"
-              onClick={() => navigate(`/recipe/${meal.id}`, { state: formInputs })}
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary font-semibold text-sm text-secondary-foreground">
-                {meal.day}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground truncate">{meal.name}</p>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  {meal.duration}
+          {plan.meals.map((meal) => {
+            const isCooked = cookedMeals.has(meal.id);
+            return (
+              <Card
+                key={meal.id}
+                className={`flex cursor-pointer items-center gap-3 p-4 transition-shadow hover:shadow-md active:scale-[0.99] ${isCooked ? "opacity-75 bg-savr-green-light/50" : ""}`}
+                onClick={() => navigate(`/recipe/${meal.id}`, { state: formInputs })}
+              >
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-semibold text-sm ${isCooked ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
+                  {isCooked ? <Check className="h-5 w-5" /> : meal.day}
                 </div>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </Card>
-          ))}
+                <div className="flex-1 min-w-0">
+                  <p className={`font-medium truncate ${isCooked ? "text-muted-foreground line-through" : "text-foreground"}`}>{meal.name}</p>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {isCooked ? "Cooked ✓" : meal.duration}
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </Card>
+            );
+          })}
         </div>
 
         {/* Two-column lists */}
