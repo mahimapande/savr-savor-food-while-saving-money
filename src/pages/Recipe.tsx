@@ -160,7 +160,7 @@ const Recipe = () => {
           <Button
             className="w-full sm:flex-1"
             variant={cooked ? "secondary" : "default"}
-            onClick={() => setCooked(!cooked)}
+            onClick={toggleCooked}
           >
             {cooked ? (
               <>

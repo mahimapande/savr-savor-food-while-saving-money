@@ -8,6 +8,7 @@ import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight, Packag
 
 const HAVE_STORAGE_KEY = "savr-have-items";
 const WEEKLY_PLAN_KEY = "weeklyPlan";
+const COOKED_MEALS_KEY = "savr-cooked-meals";
 
 // Parse "3 tbsp olive oil" → { qty: 3, unit: "tbsp", base: "olive oil" }
 const QTY_UNIT_RE = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s*(cups?|cans?|tbsp|tsp|oz|bunch(?:es)?|cloves?|large|small|medium|inch|blocks?|slices?|lbs?)\b\s*/i;
