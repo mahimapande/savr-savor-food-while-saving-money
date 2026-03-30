@@ -249,25 +249,34 @@ const Plan = () => {
           This week at a glance
         </h2>
         <div className="mb-6 space-y-2">
-          {plan.meals.map((meal) => (
-            <Card
-              key={meal.id}
-              className="flex cursor-pointer items-center gap-3 p-4 transition-shadow hover:shadow-md active:scale-[0.99]"
-              onClick={() => navigate(`/recipe/${meal.id}`, { state: formInputs })}
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary font-semibold text-sm text-secondary-foreground">
-                {meal.day}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground truncate">{meal.name}</p>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  {meal.duration}
+          {plan.meals.map((meal) => {
+            const cookedMeals: string[] = (() => {
+              try {
+                const s = localStorage.getItem(COOKED_MEALS_KEY);
+                return s ? JSON.parse(s) : [];
+              } catch { return []; }
+            })();
+            const isCooked = cookedMeals.includes(meal.id);
+            return (
+              <Card
+                key={meal.id}
+                className={`flex cursor-pointer items-center gap-3 p-4 transition-shadow hover:shadow-md active:scale-[0.99] ${isCooked ? "opacity-75 bg-savr-green-light/50" : ""}`}
+                onClick={() => navigate(`/recipe/${meal.id}`, { state: formInputs })}
+              >
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-semibold text-sm ${isCooked ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
+                  {isCooked ? <Check className="h-5 w-5" /> : meal.day}
                 </div>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </Card>
-          ))}
+                <div className="flex-1 min-w-0">
+                  <p className={`font-medium truncate ${isCooked ? "text-muted-foreground line-through" : "text-foreground"}`}>{meal.name}</p>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {isCooked ? "Cooked ✓" : meal.duration}
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </Card>
+            );
+          })}
         </div>
 
         {/* Two-column lists */}
