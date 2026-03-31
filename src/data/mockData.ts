@@ -57,10 +57,16 @@ export interface FormInputs {
 }
 
 // Recipe pool with realistic quantities and per-item costs
-const RECIPE_POOL: Omit<Meal, "day">[] = [
+// Each recipe now has a cuisine tag for filtering
+interface RecipeWithCuisine extends Omit<Meal, "day"> {
+  cuisine: string;
+}
+
+const RECIPE_POOL: RecipeWithCuisine[] = [
   {
     id: "chickpea-coconut-curry",
     name: "Chickpea Coconut Curry",
+    cuisine: "Indian",
     duration: "30 min",
     servings: 2,
     tags: ["30 mins", "2 servings", "Vegetarian"],
@@ -86,6 +92,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
   {
     id: "lemon-herb-pasta",
     name: "Lemon Herb Pasta",
+    cuisine: "Italian",
     duration: "20 min",
     servings: 2,
     tags: ["20 mins", "2 servings", "Vegetarian"],
@@ -109,6 +116,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
   {
     id: "black-bean-tacos",
     name: "Black Bean Tacos",
+    cuisine: "Mexican",
     duration: "20 min",
     servings: 2,
     tags: ["20 mins", "2 servings", "Vegetarian"],
@@ -134,6 +142,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
   {
     id: "tomato-pasta-bake",
     name: "Tomato Pasta Bake",
+    cuisine: "Italian",
     duration: "40 min",
     servings: 2,
     tags: ["40 mins", "2 servings", "Vegetarian"],
@@ -157,6 +166,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
   {
     id: "veggie-stir-fry",
     name: "Veggie Stir-fry",
+    cuisine: "Thai",
     duration: "25 min",
     servings: 2,
     tags: ["25 mins", "2 servings", "Vegetarian"],
@@ -180,6 +190,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
   {
     id: "sheet-pan-veggies-tofu",
     name: "Sheet-pan Veggies & Tofu",
+    cuisine: "American",
     duration: "35 min",
     servings: 2,
     tags: ["35 mins", "2 servings", "Vegan"],
@@ -203,6 +214,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
   {
     id: "mushroom-risotto",
     name: "Mushroom Risotto",
+    cuisine: "Italian",
     duration: "40 min",
     servings: 2,
     tags: ["40 mins", "2 servings", "Vegetarian"],
@@ -227,6 +239,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
   {
     id: "sweet-potato-chili",
     name: "Sweet Potato & Bean Chili",
+    cuisine: "American",
     duration: "35 min",
     servings: 2,
     tags: ["35 mins", "2 servings", "Vegan"],
@@ -251,6 +264,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
   {
     id: "tahini-noodles",
     name: "Tahini Noodles",
+    cuisine: "Thai",
     duration: "20 min",
     servings: 2,
     tags: ["20 mins", "2 servings", "Vegan"],
@@ -274,6 +288,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
   {
     id: "caprese-flatbread",
     name: "Caprese Flatbread",
+    cuisine: "Italian",
     duration: "15 min",
     servings: 2,
     tags: ["15 mins", "2 servings", "Vegetarian"],
@@ -297,6 +312,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
   {
     id: "egg-fried-rice",
     name: "Egg Fried Rice",
+    cuisine: "Thai",
     duration: "15 min",
     servings: 2,
     tags: ["15 mins", "2 servings"],
@@ -320,6 +336,7 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
   {
     id: "greek-salad-wrap",
     name: "Greek Salad Wraps",
+    cuisine: "Greek",
     duration: "10 min",
     servings: 2,
     tags: ["10 mins", "2 servings", "Vegetarian"],
@@ -340,8 +357,263 @@ const RECIPE_POOL: Omit<Meal, "day">[] = [
       "Roll tightly and slice in half",
     ],
   },
+  // --- Mexican ---
+  {
+    id: "veggie-burrito-bowl",
+    name: "Veggie Burrito Bowl",
+    cuisine: "Mexican",
+    duration: "25 min",
+    servings: 2,
+    tags: ["25 mins", "2 servings", "Vegetarian"],
+    reuseBadges: [],
+    estimatedCost: "$4.80",
+    ingredients: [
+      { name: "1 cup jasmine rice", cost: 0.40 },
+      { name: "1 can black beans (15 oz)", cost: 0.79 },
+      { name: "1 ripe avocado", cost: 1.00 },
+      { name: "1 cup corn kernels", cost: 0.60 },
+      { name: "1 lime", cost: 0.25 },
+      { name: "1 bunch cilantro", cost: 0.79 },
+      { name: "1 tsp cumin", cost: 0.08 },
+    ],
+    steps: [
+      "Cook rice with a squeeze of lime",
+      "Heat black beans with cumin",
+      "Assemble bowls: rice, beans, corn, avocado",
+      "Top with cilantro and lime juice",
+    ],
+  },
+  {
+    id: "enchilada-casserole",
+    name: "Enchilada Casserole",
+    cuisine: "Mexican",
+    duration: "35 min",
+    servings: 2,
+    tags: ["35 mins", "2 servings", "Vegetarian"],
+    reuseBadges: [],
+    estimatedCost: "$5.60",
+    ingredients: [
+      { name: "6 small corn tortillas", cost: 1.29 },
+      { name: "1 can black beans (15 oz)", cost: 0.79 },
+      { name: "1 cup enchilada sauce", cost: 1.29 },
+      { name: "1 cup shredded cheddar cheese (4 oz)", cost: 1.50 },
+      { name: "1 medium bell pepper", cost: 1.00 },
+    ],
+    steps: [
+      "Layer tortillas, beans, sauce, and cheese in a baking dish",
+      "Add diced bell pepper between layers",
+      "Bake at 375°F for 20 min until bubbly",
+      "Let cool 5 min before serving",
+    ],
+  },
+  // --- Indian ---
+  {
+    id: "dal-tadka",
+    name: "Dal Tadka",
+    cuisine: "Indian",
+    duration: "30 min",
+    servings: 2,
+    tags: ["30 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$3.50",
+    ingredients: [
+      { name: "1 cup dried red lentils", cost: 0.90 },
+      { name: "1 medium yellow onion", cost: 0.50 },
+      { name: "2 cloves garlic", cost: 0.20 },
+      { name: "1 can diced tomatoes (14.5 oz)", cost: 0.99 },
+      { name: "1 tsp cumin", cost: 0.08 },
+      { name: "1 tsp turmeric", cost: 0.08 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
+      { name: "1 cup jasmine rice", cost: 0.40 },
+    ],
+    steps: [
+      "Boil lentils until soft, about 20 min",
+      "Sauté onion and garlic, add cumin and turmeric",
+      "Add tomatoes and cooked lentils, simmer 5 min",
+      "Serve over rice",
+    ],
+  },
+  {
+    id: "aloo-gobi",
+    name: "Aloo Gobi",
+    cuisine: "Indian",
+    duration: "30 min",
+    servings: 2,
+    tags: ["30 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$4.20",
+    ingredients: [
+      { name: "2 medium potatoes", cost: 0.80 },
+      { name: "2 cups cauliflower florets", cost: 1.50 },
+      { name: "1 medium yellow onion", cost: 0.50 },
+      { name: "1 can diced tomatoes (14.5 oz)", cost: 0.99 },
+      { name: "1 tsp cumin", cost: 0.08 },
+      { name: "1 tsp turmeric", cost: 0.08 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
+    ],
+    steps: [
+      "Dice potatoes and chop cauliflower",
+      "Sauté onion, add cumin and turmeric",
+      "Add potatoes, cauliflower, and tomatoes",
+      "Cover and cook 20 min until tender",
+    ],
+  },
+  // --- Japanese ---
+  {
+    id: "teriyaki-tofu-bowl",
+    name: "Teriyaki Tofu Bowl",
+    cuisine: "Japanese",
+    duration: "25 min",
+    servings: 2,
+    tags: ["25 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$4.90",
+    ingredients: [
+      { name: "1 block firm tofu (14 oz)", cost: 2.29 },
+      { name: "1 cup jasmine rice", cost: 0.40 },
+      { name: "2 tbsp soy sauce", cost: 0.15 },
+      { name: "1 tbsp maple syrup", cost: 0.20 },
+      { name: "1 tsp sesame oil", cost: 0.10 },
+      { name: "1 cup broccoli florets (6 oz)", cost: 1.00 },
+      { name: "1 medium carrot", cost: 0.30 },
+    ],
+    steps: [
+      "Press and cube tofu, pan-sear until crispy",
+      "Mix soy sauce, maple syrup, and sesame oil for teriyaki glaze",
+      "Toss tofu in glaze, cook veggies",
+      "Serve over rice",
+    ],
+  },
+  {
+    id: "miso-soup-rice",
+    name: "Miso Soup with Rice",
+    cuisine: "Japanese",
+    duration: "15 min",
+    servings: 2,
+    tags: ["15 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$3.20",
+    ingredients: [
+      { name: "2 tbsp miso paste", cost: 0.50 },
+      { name: "1 block firm tofu (14 oz)", cost: 2.29 },
+      { name: "2 green onions", cost: 0.20 },
+      { name: "1 cup jasmine rice", cost: 0.40 },
+      { name: "1 sheet nori seaweed", cost: 0.30 },
+    ],
+    steps: [
+      "Cook rice according to package",
+      "Bring 3 cups water to a simmer, dissolve miso paste",
+      "Add cubed tofu and sliced green onions",
+      "Serve soup alongside rice, garnish with nori",
+    ],
+  },
+  // --- Korean ---
+  {
+    id: "bibimbap",
+    name: "Bibimbap Bowl",
+    cuisine: "Korean",
+    duration: "30 min",
+    servings: 2,
+    tags: ["30 mins", "2 servings", "Vegetarian"],
+    reuseBadges: [],
+    estimatedCost: "$5.00",
+    ingredients: [
+      { name: "1 cup jasmine rice", cost: 0.40 },
+      { name: "2 large eggs", cost: 0.50 },
+      { name: "1 medium carrot", cost: 0.30 },
+      { name: "1 cup spinach", cost: 0.80 },
+      { name: "1 medium zucchini", cost: 0.80 },
+      { name: "2 tbsp soy sauce", cost: 0.15 },
+      { name: "1 tbsp sesame oil", cost: 0.20 },
+      { name: "1 tbsp gochujang (Korean chili paste)", cost: 0.40 },
+    ],
+    steps: [
+      "Cook rice and prep vegetables by slicing thin",
+      "Sauté each vegetable separately with sesame oil",
+      "Fry eggs sunny-side up",
+      "Assemble bowls: rice, veggies, egg, gochujang",
+    ],
+  },
+  // --- Mediterranean ---
+  {
+    id: "falafel-plate",
+    name: "Falafel Plate",
+    cuisine: "Mediterranean",
+    duration: "30 min",
+    servings: 2,
+    tags: ["30 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$4.60",
+    ingredients: [
+      { name: "1 can chickpeas (15 oz)", cost: 0.89 },
+      { name: "2 large flour tortillas", cost: 0.80 },
+      { name: "1 medium cucumber", cost: 0.60 },
+      { name: "2 medium tomatoes", cost: 1.00 },
+      { name: "3 tbsp hummus", cost: 0.50 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
+      { name: "1 tsp cumin", cost: 0.08 },
+    ],
+    steps: [
+      "Mash chickpeas with cumin, form into patties",
+      "Pan-fry in olive oil until golden",
+      "Dice cucumber and tomatoes",
+      "Serve falafel with pita, veggies, and hummus",
+    ],
+  },
+  // --- Chinese ---
+  {
+    id: "mapo-tofu",
+    name: "Mapo Tofu",
+    cuisine: "Chinese",
+    duration: "20 min",
+    servings: 2,
+    tags: ["20 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$4.10",
+    ingredients: [
+      { name: "1 block firm tofu (14 oz)", cost: 2.29 },
+      { name: "2 tbsp soy sauce", cost: 0.15 },
+      { name: "1 tsp chili powder", cost: 0.08 },
+      { name: "2 cloves garlic", cost: 0.20 },
+      { name: "2 green onions", cost: 0.20 },
+      { name: "1 cup jasmine rice", cost: 0.40 },
+      { name: "1 tbsp sesame oil", cost: 0.20 },
+    ],
+    steps: [
+      "Cube tofu and set aside",
+      "Sauté garlic in sesame oil, add chili powder",
+      "Add tofu and soy sauce, simmer 10 min",
+      "Serve over rice, top with green onions",
+    ],
+  },
+  // --- French ---
+  {
+    id: "ratatouille",
+    name: "Ratatouille",
+    cuisine: "French",
+    duration: "40 min",
+    servings: 2,
+    tags: ["40 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$5.30",
+    ingredients: [
+      { name: "1 medium zucchini", cost: 0.80 },
+      { name: "1 medium eggplant", cost: 1.50 },
+      { name: "1 medium bell pepper", cost: 1.00 },
+      { name: "1 can crushed tomatoes (28 oz)", cost: 1.29 },
+      { name: "1 medium yellow onion", cost: 0.50 },
+      { name: "2 cloves garlic", cost: 0.20 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
+      { name: "1 tsp Italian seasoning", cost: 0.08 },
+    ],
+    steps: [
+      "Dice all vegetables into similar-size pieces",
+      "Sauté onion and garlic in olive oil",
+      "Add all vegetables, tomatoes, and seasoning",
+      "Simmer 30 min until tender, serve with bread",
+    ],
+  },
 ];
-
 const PESCATARIAN_POOL: Omit<Meal, "day">[] = [
   {
     id: "grilled-salmon-veggies",
