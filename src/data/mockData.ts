@@ -50,7 +50,7 @@ export interface ShoppingList {
 export interface FormInputs {
   budget: string;
   meals: string;
-  dietary: string;
+  dietary: string[];
   cuisines: string[];
   pantryItems: string[];
   preference: string;
