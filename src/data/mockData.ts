@@ -981,12 +981,19 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const perMealBudget = budgetNum / numMeals;
   const dietaryPreference = normalizeDietary(inputs?.dietary);
   const dietaryTag = getDietaryTag(dietaryPreference);
-  const mergedPool = [...RECIPE_POOL, ...PESCATARIAN_POOL, ...VEGAN_EXTRA_POOL];
+  const mergedPool: RecipeWithCuisine[] = [...RECIPE_POOL, ...PESCATARIAN_POOL, ...VEGAN_EXTRA_POOL];
+  const userCuisines = (inputs?.cuisines || []).map((c) => c.toLowerCase().trim());
 
   const seed = Date.now();
   const filteredPool = mergedPool.filter((recipe) => matchesDiet(recipe, dietaryPreference));
 
-  let selectedBase: Omit<Meal, "day">[];
+  // Separate cuisine-matching recipes from the rest
+  function matchesCuisine(recipe: RecipeWithCuisine): boolean {
+    if (userCuisines.length === 0) return false;
+    return userCuisines.some((c) => recipe.cuisine.toLowerCase() === c);
+  }
+
+  let selectedBase: RecipeWithCuisine[];
   if (dietaryPreference === "pescatarian") {
     const anchorIds = [
       "grilled-salmon-veggies",
@@ -996,14 +1003,24 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     ];
     const anchors = anchorIds
       .map((id) => PESCATARIAN_POOL.find((recipe) => recipe.id === id))
-      .filter((recipe): recipe is Omit<Meal, "day"> => Boolean(recipe));
+      .filter((recipe): recipe is RecipeWithCuisine => Boolean(recipe));
     const extras = seededShuffle(
       PESCATARIAN_POOL.filter((recipe) => !anchorIds.includes(recipe.id)),
       seed
     );
     selectedBase = ensureMealCount([...anchors, ...extras], numMeals);
   } else {
-    selectedBase = ensureMealCount(seededShuffle(filteredPool, seed), numMeals);
+    // Prioritize recipes matching selected cuisines
+    const cuisineMatches = seededShuffle(filteredPool.filter(matchesCuisine), seed);
+    const others = seededShuffle(filteredPool.filter((r) => !matchesCuisine(r)), seed);
+    // Fill at least half the slots with cuisine matches if available
+    const minCuisineSlots = userCuisines.length > 0 ? Math.ceil(numMeals * 0.6) : 0;
+    const cuisinePick = cuisineMatches.slice(0, Math.max(minCuisineSlots, cuisineMatches.length));
+    const combined = [...cuisinePick, ...others];
+    // Deduplicate by id
+    const seen = new Set<string>();
+    const unique = combined.filter((r) => { if (seen.has(r.id)) return false; seen.add(r.id); return true; });
+    selectedBase = ensureMealCount(unique, numMeals);
   }
 
   const selected = selectedBase.length > 0
