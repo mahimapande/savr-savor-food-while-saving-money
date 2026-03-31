@@ -1007,7 +1007,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   }
 
   let selectedBase: RecipeWithCuisine[];
-  if (dietaryPreference === "pescatarian") {
+  if (dietaryPreferences.includes("pescatarian")) {
     const anchorIds = [
       "grilled-salmon-veggies",
       "tuna-rice-bowl",
