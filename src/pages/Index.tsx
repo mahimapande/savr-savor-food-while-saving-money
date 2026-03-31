@@ -22,7 +22,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [budget, setBudget] = useState("");
   const [meals, setMeals] = useState("");
-  const [dietary, setDietary] = useState("");
+  const [dietary, setDietary] = useState<string[]>([]);
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [customCuisine, setCustomCuisine] = useState("");
   // pantryChecked tracks which items are toggled on; pantryAmounts stores the user-typed quantity string

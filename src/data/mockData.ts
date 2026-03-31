@@ -1148,8 +1148,8 @@ export function generatePlan(inputs?: FormInputs): PlanData {
       day: DAYS[i],
       estimatedCost: `$${adjustedCost}`,
       reuseBadges: badges,
-      tags: dietaryTag
-        ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), dietaryTag]
+      tags: dietaryTags.length > 0
+        ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), ...dietaryTags]
         : recipe.tags,
       cooked: false,
     };
