@@ -154,14 +154,24 @@ const Index = () => {
           </div>
 
           {/* Dietary */}
-          <div className="space-y-2">
-            <Label htmlFor="dietary">Dietary needs</Label>
-            <Input
-              id="dietary"
-              placeholder="e.g. vegetarian"
-              value={dietary}
-              onChange={(e) => setDietary(e.target.value)}
-            />
+          <div className="space-y-3">
+            <Label>Dietary needs (select all that apply)</Label>
+            <div className="flex flex-wrap gap-2">
+              {["Vegetarian", "Vegan", "Pescatarian", "Gluten-free", "Dairy-free"].map((d) => (
+                <Badge
+                  key={d}
+                  variant={dietary.includes(d) ? "default" : "outline"}
+                  className="cursor-pointer select-none px-3 py-1.5 text-sm transition-colors"
+                  onClick={() =>
+                    setDietary((prev) =>
+                      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]
+                    )
+                  }
+                >
+                  {d}
+                </Badge>
+              ))}
+            </div>
           </div>
 
           {/* Cuisines */}
