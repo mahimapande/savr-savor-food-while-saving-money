@@ -738,13 +738,44 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const reusedIngredients = reuseEntries.reduce((sum, [, count]) => sum + count, 0);
   const reusePercent = totalIngredients > 0 ? Math.round((reusedIngredients / totalIngredients) * 100) : 0;
 
+  // Build pantry matchers early so we can mark ingredients
+  const userPantryListEarly = Array.from(
+    new Set((inputs?.pantryItems || []).map((p) => p.trim()).filter(Boolean))
+  );
+  const STRIP_QTY_RE_EARLY = /^[\d./]+\s*/;
+  const STRIP_UNIT_RE_EARLY = /^(cups?|gallons?|sticks?|cans?|tbsp|tsp|oz|lbs?|large|small|medium|dozen|bunch(es)?|cloves?|blocks?|bags?|boxes?|bottles?|jars?|cartons?|pints?|quarts?|liters?)\s+/i;
+  function extractBaseNameEarly(input: string): string {
+    let s = input.toLowerCase().trim();
+    s = s.replace(STRIP_QTY_RE_EARLY, "").trim();
+    s = s.replace(STRIP_UNIT_RE_EARLY, "").trim();
+    s = s.replace(STRIP_UNIT_RE_EARLY, "").trim();
+    return s || input.toLowerCase().trim();
+  }
+  const pantryMatchersEarly = userPantryListEarly.map((raw) => ({
+    raw,
+    baseName: extractBaseNameEarly(raw),
+  }));
+
+  function isUserPantryItem(ingredientName: string): boolean {
+    const lower = ingredientName.toLowerCase();
+    return pantryMatchersEarly.some(({ baseName }) => {
+      const regex = new RegExp(`(^|\\s|\\d)${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(s|es)?($|\\s|,)`, 'i');
+      return regex.test(lower);
+    });
+  }
+
   const meals: Meal[] = selected.map((recipe, i) => {
     const badges: string[] = [];
-    const pantryCount = recipe.ingredients.filter((ing) => ing.pantry).length;
+    // Mark ingredients as pantry based on user input
+    const ingredients = recipe.ingredients.map((ing) => ({
+      ...ing,
+      pantry: isUserPantryItem(ing.name),
+    }));
+    const pantryCount = ingredients.filter((ing) => ing.pantry).length;
     if (pantryCount > 0) {
       badges.push(`Uses ${pantryCount} pantry item${pantryCount > 1 ? "s" : ""}`);
     }
-    for (const ing of recipe.ingredients) {
+    for (const ing of ingredients) {
       const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
       const count = shared.get(key) || 0;
       if (count >= 2) {
@@ -754,12 +785,13 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     }
 
     const scaleFactor = perMealBudget / 5;
-    const baseCost = recipe.ingredients.reduce((sum, ing) => sum + ing.cost, 0);
+    const baseCost = ingredients.reduce((sum, ing) => sum + ing.cost, 0);
     const adjustedCost = Math.max(2, baseCost * Math.min(1.5, Math.max(0.7, scaleFactor))).toFixed(2);
     badges.push(`Est. cost: ~$${adjustedCost}`);
 
     return {
       ...recipe,
+      ingredients,
       day: DAYS[i],
       estimatedCost: `$${adjustedCost}`,
       reuseBadges: badges,
