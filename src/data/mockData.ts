@@ -992,13 +992,13 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const numMeals = Math.min(7, Math.max(2, parseInt(inputs?.meals || "5") || 5));
   const budgetNum = parseFloat(inputs?.budget || "60") || 60;
   const perMealBudget = budgetNum / numMeals;
-  const dietaryPreference = normalizeDietary(inputs?.dietary);
-  const dietaryTag = getDietaryTag(dietaryPreference);
+  const dietaryPreferences = normalizeDietaryList(inputs?.dietary);
+  const dietaryTags = getDietaryTags(dietaryPreferences);
   const mergedPool: RecipeWithCuisine[] = [...RECIPE_POOL, ...PESCATARIAN_POOL, ...VEGAN_EXTRA_POOL];
   const userCuisines = (inputs?.cuisines || []).map((c) => c.toLowerCase().trim());
 
   const seed = Date.now();
-  const filteredPool = mergedPool.filter((recipe) => matchesDiet(recipe, dietaryPreference));
+  const filteredPool = mergedPool.filter((recipe) => matchesDietMulti(recipe, dietaryPreferences));
 
   // Separate cuisine-matching recipes from the rest
   function matchesCuisine(recipe: RecipeWithCuisine): boolean {
