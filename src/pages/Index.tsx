@@ -22,7 +22,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [budget, setBudget] = useState("");
   const [meals, setMeals] = useState("");
-  const [dietary, setDietary] = useState("");
+  const [dietary, setDietary] = useState<string[]>([]);
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [customCuisine, setCustomCuisine] = useState("");
   // pantryChecked tracks which items are toggled on; pantryAmounts stores the user-typed quantity string
@@ -154,14 +154,24 @@ const Index = () => {
           </div>
 
           {/* Dietary */}
-          <div className="space-y-2">
-            <Label htmlFor="dietary">Dietary needs</Label>
-            <Input
-              id="dietary"
-              placeholder="e.g. vegetarian"
-              value={dietary}
-              onChange={(e) => setDietary(e.target.value)}
-            />
+          <div className="space-y-3">
+            <Label>Dietary needs (select all that apply)</Label>
+            <div className="flex flex-wrap gap-2">
+              {["Vegetarian", "Vegan", "Pescatarian", "Gluten-free", "Dairy-free"].map((d) => (
+                <Badge
+                  key={d}
+                  variant={dietary.includes(d) ? "default" : "outline"}
+                  className="cursor-pointer select-none px-3 py-1.5 text-sm transition-colors"
+                  onClick={() =>
+                    setDietary((prev) =>
+                      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]
+                    )
+                  }
+                >
+                  {d}
+                </Badge>
+              ))}
+            </div>
           </div>
 
           {/* Cuisines */}

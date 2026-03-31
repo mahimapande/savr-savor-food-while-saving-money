@@ -50,7 +50,7 @@ export interface ShoppingList {
 export interface FormInputs {
   budget: string;
   meals: string;
-  dietary: string;
+  dietary: string[];
   cuisines: string[];
   pantryItems: string[];
   preference: string;
@@ -887,29 +887,42 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const DIETARY_TAGS = ["Vegetarian", "Vegan", "Pescatarian"];
 
+const DIETARY_OPTIONS: DietaryPreference[] = ["vegetarian", "vegan", "pescatarian"];
+
 type DietaryPreference = "vegetarian" | "vegan" | "pescatarian" | "any";
 
-function normalizeDietary(value?: string): DietaryPreference {
-  const dietary = (value || "").toLowerCase().trim();
-  if (dietary.includes("pesc")) return "pescatarian";
-  if (dietary.includes("vegan")) return "vegan";
-  if (dietary.includes("veget")) return "vegetarian";
-  return "any";
+function normalizeDietaryList(values?: string[]): DietaryPreference[] {
+  if (!values || values.length === 0) return ["any"];
+  const prefs: DietaryPreference[] = [];
+  for (const v of values) {
+    const lower = v.toLowerCase().trim();
+    if (lower.includes("pesc") && !prefs.includes("pescatarian")) prefs.push("pescatarian");
+    else if (lower.includes("vegan") && !prefs.includes("vegan")) prefs.push("vegan");
+    else if (lower.includes("veget") && !prefs.includes("vegetarian")) prefs.push("vegetarian");
+  }
+  return prefs.length > 0 ? prefs : ["any"];
 }
 
-function getDietaryTag(preference: DietaryPreference): string | null {
-  if (preference === "any") return null;
-  if (preference === "pescatarian") return "Pescatarian ✓";
-  if (preference === "vegan") return "Vegan ✓";
-  return "Vegetarian ✓";
+function getDietaryTags(preferences: DietaryPreference[]): string[] {
+  const tags: string[] = [];
+  for (const p of preferences) {
+    if (p === "pescatarian") tags.push("Pescatarian ✓");
+    else if (p === "vegan") tags.push("Vegan ✓");
+    else if (p === "vegetarian") tags.push("Vegetarian ✓");
+  }
+  return tags;
 }
 
-function matchesDiet(recipe: Omit<Meal, "day">, preference: DietaryPreference): boolean {
+function matchesDietMulti(recipe: Omit<Meal, "day">, preferences: DietaryPreference[]): boolean {
+  if (preferences.includes("any")) return true;
   const hasTag = (tag: string) => recipe.tags.some((t) => t.toLowerCase() === tag.toLowerCase());
-  if (preference === "pescatarian") return hasTag("Pescatarian");
-  if (preference === "vegan") return hasTag("Vegan");
-  if (preference === "vegetarian") return hasTag("Vegetarian") || hasTag("Vegan");
-  return true;
+  // Recipe is valid if it matches ANY of the user's dietary preferences
+  return preferences.some((pref) => {
+    if (pref === "pescatarian") return hasTag("Pescatarian");
+    if (pref === "vegan") return hasTag("Vegan");
+    if (pref === "vegetarian") return hasTag("Vegetarian") || hasTag("Vegan");
+    return true;
+  });
 }
 
 function ensureMealCount<T extends Omit<Meal, "day">>(recipes: T[], count: number): T[] {
@@ -979,13 +992,13 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const numMeals = Math.min(7, Math.max(2, parseInt(inputs?.meals || "5") || 5));
   const budgetNum = parseFloat(inputs?.budget || "60") || 60;
   const perMealBudget = budgetNum / numMeals;
-  const dietaryPreference = normalizeDietary(inputs?.dietary);
-  const dietaryTag = getDietaryTag(dietaryPreference);
+  const dietaryPreferences = normalizeDietaryList(inputs?.dietary);
+  const dietaryTags = getDietaryTags(dietaryPreferences);
   const mergedPool: RecipeWithCuisine[] = [...RECIPE_POOL, ...PESCATARIAN_POOL, ...VEGAN_EXTRA_POOL];
   const userCuisines = (inputs?.cuisines || []).map((c) => c.toLowerCase().trim());
 
   const seed = Date.now();
-  const filteredPool = mergedPool.filter((recipe) => matchesDiet(recipe, dietaryPreference));
+  const filteredPool = mergedPool.filter((recipe) => matchesDietMulti(recipe, dietaryPreferences));
 
   // Separate cuisine-matching recipes from the rest
   function matchesCuisine(recipe: RecipeWithCuisine): boolean {
@@ -994,7 +1007,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   }
 
   let selectedBase: RecipeWithCuisine[];
-  if (dietaryPreference === "pescatarian") {
+  if (dietaryPreferences.includes("pescatarian")) {
     const anchorIds = [
       "grilled-salmon-veggies",
       "tuna-rice-bowl",
@@ -1135,8 +1148,8 @@ export function generatePlan(inputs?: FormInputs): PlanData {
       day: DAYS[i],
       estimatedCost: `$${adjustedCost}`,
       reuseBadges: badges,
-      tags: dietaryTag
-        ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), dietaryTag]
+      tags: dietaryTags.length > 0
+        ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), ...dietaryTags]
         : recipe.tags,
       cooked: false,
     };
