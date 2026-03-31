@@ -912,7 +912,7 @@ function matchesDiet(recipe: Omit<Meal, "day">, preference: DietaryPreference): 
   return true;
 }
 
-function ensureMealCount(recipes: Omit<Meal, "day">[], count: number): Omit<Meal, "day">[] {
+function ensureMealCount<T extends Omit<Meal, "day">>(recipes: T[], count: number): T[] {
   if (recipes.length >= count) return recipes.slice(0, count);
   if (recipes.length === 0) return [];
 
