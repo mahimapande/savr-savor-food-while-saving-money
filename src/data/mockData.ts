@@ -614,10 +614,11 @@ const RECIPE_POOL: RecipeWithCuisine[] = [
     ],
   },
 ];
-const PESCATARIAN_POOL: Omit<Meal, "day">[] = [
+const PESCATARIAN_POOL: RecipeWithCuisine[] = [
   {
     id: "grilled-salmon-veggies",
     name: "Grilled Salmon + Veggies",
+    cuisine: "American",
     duration: "25 min",
     servings: 2,
     tags: ["25 mins", "2 servings", "Pescatarian"],
@@ -641,6 +642,7 @@ const PESCATARIAN_POOL: Omit<Meal, "day">[] = [
   {
     id: "tuna-rice-bowl",
     name: "Tuna Rice Bowl",
+    cuisine: "Japanese",
     duration: "20 min",
     servings: 2,
     tags: ["20 mins", "2 servings", "Pescatarian"],
@@ -665,6 +667,7 @@ const PESCATARIAN_POOL: Omit<Meal, "day">[] = [
   {
     id: "shrimp-stir-fry",
     name: "Shrimp Stir-fry",
+    cuisine: "Thai",
     duration: "20 min",
     servings: 2,
     tags: ["20 mins", "2 servings", "Pescatarian"],
@@ -688,6 +691,7 @@ const PESCATARIAN_POOL: Omit<Meal, "day">[] = [
   {
     id: "leftover-salmon-salad",
     name: "Leftover Salmon Salad",
+    cuisine: "Mediterranean",
     duration: "15 min",
     servings: 2,
     tags: ["15 mins", "2 servings", "Pescatarian"],
@@ -711,6 +715,7 @@ const PESCATARIAN_POOL: Omit<Meal, "day">[] = [
   {
     id: "cod-tacos",
     name: "Cod Tacos",
+    cuisine: "Mexican",
     duration: "25 min",
     servings: 2,
     tags: ["25 mins", "2 servings", "Pescatarian"],
@@ -734,6 +739,7 @@ const PESCATARIAN_POOL: Omit<Meal, "day">[] = [
   {
     id: "garlic-shrimp-pasta",
     name: "Garlic Shrimp Pasta",
+    cuisine: "Italian",
     duration: "25 min",
     servings: 2,
     tags: ["25 mins", "2 servings", "Pescatarian"],
@@ -757,6 +763,7 @@ const PESCATARIAN_POOL: Omit<Meal, "day">[] = [
   {
     id: "sardine-toast-plate",
     name: "Sardine Tomato Toast Plate",
+    cuisine: "Mediterranean",
     duration: "10 min",
     servings: 2,
     tags: ["10 mins", "2 servings", "Pescatarian"],
@@ -778,10 +785,11 @@ const PESCATARIAN_POOL: Omit<Meal, "day">[] = [
   },
 ];
 
-const VEGAN_EXTRA_POOL: Omit<Meal, "day">[] = [
+const VEGAN_EXTRA_POOL: RecipeWithCuisine[] = [
   {
     id: "lentil-coconut-stew",
     name: "Lentil Coconut Stew",
+    cuisine: "Indian",
     duration: "35 min",
     servings: 2,
     tags: ["35 mins", "2 servings", "Vegan"],
@@ -805,6 +813,7 @@ const VEGAN_EXTRA_POOL: Omit<Meal, "day">[] = [
   {
     id: "tofu-rice-bowl",
     name: "Crispy Tofu Rice Bowl",
+    cuisine: "Thai",
     duration: "30 min",
     servings: 2,
     tags: ["30 mins", "2 servings", "Vegan"],
@@ -828,6 +837,7 @@ const VEGAN_EXTRA_POOL: Omit<Meal, "day">[] = [
   {
     id: "chickpea-shawarma-wrap",
     name: "Chickpea Shawarma Wrap",
+    cuisine: "Mediterranean",
     duration: "20 min",
     servings: 2,
     tags: ["20 mins", "2 servings", "Vegan"],
@@ -851,6 +861,7 @@ const VEGAN_EXTRA_POOL: Omit<Meal, "day">[] = [
   {
     id: "tomato-white-bean-toast",
     name: "Tomato White Bean Toast",
+    cuisine: "Italian",
     duration: "15 min",
     servings: 2,
     tags: ["15 mins", "2 servings", "Vegan"],
@@ -872,7 +883,6 @@ const VEGAN_EXTRA_POOL: Omit<Meal, "day">[] = [
     ],
   },
 ];
-
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const DIETARY_TAGS = ["Vegetarian", "Vegan", "Pescatarian"];
