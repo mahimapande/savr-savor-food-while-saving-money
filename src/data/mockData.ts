@@ -1023,13 +1023,54 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     selectedBase = ensureMealCount(unique, numMeals);
   }
 
-  const selected = selectedBase.length > 0
+  let selected = selectedBase.length > 0
     ? selectedBase
     : ensureMealCount(seededShuffle(mergedPool, seed), numMeals);
 
+  // Apply preference-based selection/sorting
   if (inputs?.preference === "savings") {
-    selected.sort((a, b) => parseFloat(a.estimatedCost.replace("$", "")) - parseFloat(b.estimatedCost.replace("$", "")));
+    // For savings: pick recipes that share the most ingredients and are cheapest
+    // Score each recipe by how many ingredients overlap with others in the pool
+    const sharedEarly = findSharedIngredients(selected);
+    selected.sort((a, b) => {
+      // Higher reuse score = better for savings
+      const reuseA = a.ingredients.reduce((sum, ing) => {
+        const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
+        return sum + (sharedEarly.get(key) || 0);
+      }, 0);
+      const reuseB = b.ingredients.reduce((sum, ing) => {
+        const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
+        return sum + (sharedEarly.get(key) || 0);
+      }, 0);
+      // Sort by reuse (desc), then cost (asc)
+      if (reuseB !== reuseA) return reuseB - reuseA;
+      return parseFloat(a.estimatedCost.replace("$", "")) - parseFloat(b.estimatedCost.replace("$", ""));
+    });
+  } else if (inputs?.preference === "variety") {
+    // For variety: maximize cuisine diversity and minimize ingredient overlap
+    // Re-select to spread across as many cuisines as possible
+    const cuisineGroups = new Map<string, RecipeWithCuisine[]>();
+    for (const r of selected) {
+      const list = cuisineGroups.get(r.cuisine) || [];
+      list.push(r);
+      cuisineGroups.set(r.cuisine, list);
+    }
+    // Round-robin pick from each cuisine group
+    const varietyPick: RecipeWithCuisine[] = [];
+    const groupIters = [...cuisineGroups.values()].map((g) => ({ items: g, idx: 0 }));
+    while (varietyPick.length < numMeals && groupIters.some((g) => g.idx < g.items.length)) {
+      for (const g of groupIters) {
+        if (g.idx < g.items.length && varietyPick.length < numMeals) {
+          varietyPick.push(g.items[g.idx]);
+          g.idx++;
+        }
+      }
+    }
+    if (varietyPick.length >= numMeals) {
+      selected = varietyPick.slice(0, numMeals);
+    }
   }
+  // "balanced" keeps the default selection order (mix of cost and variety)
 
   const shared = findSharedIngredients(selected);
   const reuseEntries = [...shared.entries()].filter(([, count]) => count >= 2);
