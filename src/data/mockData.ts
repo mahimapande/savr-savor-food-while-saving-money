@@ -1314,64 +1314,57 @@ export function categorizeItem(name: string): keyof Omit<ShoppingList, "totalIte
 }
 
 export function generatePlan(inputs?: FormInputs): PlanData {
-  const numMeals = Math.min(7, Math.max(2, parseInt(inputs?.meals || "5") || 5));
+  const mc = inputs?.mealCounts || { breakfast: 0, lunch: 0, dinner: Math.min(7, Math.max(2, parseInt(inputs?.meals || "5") || 5)), snack: 0 };
+  const dinnerCount = Math.min(7, Math.max(0, mc.dinner));
+  const breakfastCount = Math.min(7, Math.max(0, mc.breakfast));
+  const lunchCount = Math.min(7, Math.max(0, mc.lunch));
+  const snackCount = Math.min(7, Math.max(0, mc.snack));
+  const totalMeals = breakfastCount + lunchCount + dinnerCount + snackCount;
   const budgetNum = parseFloat(inputs?.budget || "60") || 60;
-  const perMealBudget = budgetNum / numMeals;
+  const perMealBudget = totalMeals > 0 ? budgetNum / totalMeals : 12;
   const dietaryPreferences = normalizeDietaryList(inputs?.dietary);
   const dietaryTags = getDietaryTags(dietaryPreferences);
-  const mergedPool: RecipeWithCuisine[] = [...RECIPE_POOL, ...PESCATARIAN_POOL, ...VEGAN_EXTRA_POOL];
+  const dinnerPool: RecipeWithCuisine[] = [...RECIPE_POOL, ...PESCATARIAN_POOL, ...VEGAN_EXTRA_POOL];
   const userCuisines = (inputs?.cuisines || []).map((c) => c.toLowerCase().trim());
-
   const seed = Date.now();
-  const filteredPool = mergedPool.filter((recipe) => matchesDietMulti(recipe, dietaryPreferences));
 
-  // Separate cuisine-matching recipes from the rest
   function matchesCuisine(recipe: RecipeWithCuisine): boolean {
     if (userCuisines.length === 0) return false;
     return userCuisines.some((c) => recipe.cuisine.toLowerCase() === c);
   }
 
-  let selectedBase: RecipeWithCuisine[];
-  if (dietaryPreferences.includes("pescatarian")) {
-    const anchorIds = [
-      "grilled-salmon-veggies",
-      "tuna-rice-bowl",
-      "shrimp-stir-fry",
-      "leftover-salmon-salad",
-    ];
-    const anchors = anchorIds
-      .map((id) => PESCATARIAN_POOL.find((recipe) => recipe.id === id))
-      .filter((recipe): recipe is RecipeWithCuisine => Boolean(recipe));
-    const extras = seededShuffle(
-      PESCATARIAN_POOL.filter((recipe) => !anchorIds.includes(recipe.id)),
-      seed
-    );
-    selectedBase = ensureMealCount([...anchors, ...extras], numMeals);
-  } else {
-    // Prioritize recipes matching selected cuisines
-    const cuisineMatches = seededShuffle(filteredPool.filter(matchesCuisine), seed);
-    const others = seededShuffle(filteredPool.filter((r) => !matchesCuisine(r)), seed);
-    // Fill at least half the slots with cuisine matches if available
-    const minCuisineSlots = userCuisines.length > 0 ? Math.ceil(numMeals * 0.6) : 0;
+  function selectFromPool(pool: RecipeWithCuisine[], count: number, mealType: MealType): RecipeWithCuisine[] {
+    if (count === 0) return [];
+    const filtered = pool.filter((r) => matchesDietMulti(r, dietaryPreferences));
+    const cuisineMatches = seededShuffle(filtered.filter(matchesCuisine), seed);
+    const others = seededShuffle(filtered.filter((r) => !matchesCuisine(r)), seed);
+    const minCuisineSlots = userCuisines.length > 0 ? Math.ceil(count * 0.6) : 0;
     const cuisinePick = cuisineMatches.slice(0, Math.max(minCuisineSlots, cuisineMatches.length));
     const combined = [...cuisinePick, ...others];
-    // Deduplicate by id
     const seen = new Set<string>();
     const unique = combined.filter((r) => { if (seen.has(r.id)) return false; seen.add(r.id); return true; });
-    selectedBase = ensureMealCount(unique, numMeals);
+    return ensureMealCount(unique, count).map((r) => ({ ...r, mealType }));
   }
 
-  let selected = selectedBase.length > 0
-    ? selectedBase
-    : ensureMealCount(seededShuffle(mergedPool, seed), numMeals);
+  const breakfastSelected = selectFromPool(BREAKFAST_POOL, breakfastCount, "breakfast");
+  const lunchSelected = selectFromPool(LUNCH_POOL, lunchCount, "lunch");
+  const snackSelected = selectFromPool(SNACK_POOL, snackCount, "snack");
 
-  // Apply preference-based selection/sorting
+  let dinnerSelected: RecipeWithCuisine[];
+  if (dietaryPreferences.includes("pescatarian") && dinnerCount > 0) {
+    const anchorIds = ["grilled-salmon-veggies", "tuna-rice-bowl", "shrimp-stir-fry", "leftover-salmon-salad"];
+    const anchors = anchorIds.map((id) => PESCATARIAN_POOL.find((r) => r.id === id)).filter((r): r is RecipeWithCuisine => Boolean(r));
+    const extras = seededShuffle(PESCATARIAN_POOL.filter((r) => !anchorIds.includes(r.id)), seed);
+    dinnerSelected = ensureMealCount([...anchors, ...extras], dinnerCount).map((r) => ({ ...r, mealType: "dinner" as MealType }));
+  } else {
+    dinnerSelected = selectFromPool(dinnerPool, dinnerCount, "dinner");
+  }
+
+  let selected = [...breakfastSelected, ...lunchSelected, ...dinnerSelected, ...snackSelected];
+
   if (inputs?.preference === "savings") {
-    // For savings: pick recipes that share the most ingredients and are cheapest
-    // Score each recipe by how many ingredients overlap with others in the pool
     const sharedEarly = findSharedIngredients(selected);
     selected.sort((a, b) => {
-      // Higher reuse score = better for savings
       const reuseA = a.ingredients.reduce((sum, ing) => {
         const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
         return sum + (sharedEarly.get(key) || 0);
@@ -1380,35 +1373,28 @@ export function generatePlan(inputs?: FormInputs): PlanData {
         const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
         return sum + (sharedEarly.get(key) || 0);
       }, 0);
-      // Sort by reuse (desc), then cost (asc)
       if (reuseB !== reuseA) return reuseB - reuseA;
       return parseFloat(a.estimatedCost.replace("$", "")) - parseFloat(b.estimatedCost.replace("$", ""));
     });
   } else if (inputs?.preference === "variety") {
-    // For variety: maximize cuisine diversity and minimize ingredient overlap
-    // Re-select to spread across as many cuisines as possible
     const cuisineGroups = new Map<string, RecipeWithCuisine[]>();
     for (const r of selected) {
       const list = cuisineGroups.get(r.cuisine) || [];
       list.push(r);
       cuisineGroups.set(r.cuisine, list);
     }
-    // Round-robin pick from each cuisine group
     const varietyPick: RecipeWithCuisine[] = [];
     const groupIters = [...cuisineGroups.values()].map((g) => ({ items: g, idx: 0 }));
-    while (varietyPick.length < numMeals && groupIters.some((g) => g.idx < g.items.length)) {
+    while (varietyPick.length < selected.length && groupIters.some((g) => g.idx < g.items.length)) {
       for (const g of groupIters) {
-        if (g.idx < g.items.length && varietyPick.length < numMeals) {
+        if (g.idx < g.items.length && varietyPick.length < selected.length) {
           varietyPick.push(g.items[g.idx]);
           g.idx++;
         }
       }
     }
-    if (varietyPick.length >= numMeals) {
-      selected = varietyPick.slice(0, numMeals);
-    }
+    if (varietyPick.length >= selected.length) selected = varietyPick;
   }
-  // "balanced" keeps the default selection order (mix of cost and variety)
 
   const shared = findSharedIngredients(selected);
   const reuseEntries = [...shared.entries()].filter(([, count]) => count >= 2);
@@ -1416,10 +1402,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const reusedIngredients = reuseEntries.reduce((sum, [, count]) => sum + count, 0);
   const reusePercent = totalIngredients > 0 ? Math.round((reusedIngredients / totalIngredients) * 100) : 0;
 
-  // Build pantry matchers early so we can mark ingredients
-  const userPantryListEarly = Array.from(
-    new Set((inputs?.pantryItems || []).map((p) => p.trim()).filter(Boolean))
-  );
+  const userPantryListEarly = Array.from(new Set((inputs?.pantryItems || []).map((p) => p.trim()).filter(Boolean)));
   const STRIP_QTY_RE_EARLY = /^[\d./]+\s*/;
   const STRIP_UNIT_RE_EARLY = /^(cups?|gallons?|sticks?|cans?|tbsp|tsp|oz|lbs?|large|small|medium|dozen|bunch(es)?|cloves?|blocks?|bags?|boxes?|bottles?|jars?|cartons?|pints?|quarts?|liters?)\s+/i;
   function extractBaseNameEarly(input: string): string {
@@ -1429,10 +1412,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     s = s.replace(STRIP_UNIT_RE_EARLY, "").trim();
     return s || input.toLowerCase().trim();
   }
-  const pantryMatchersEarly = userPantryListEarly.map((raw) => ({
-    raw,
-    baseName: extractBaseNameEarly(raw),
-  }));
+  const pantryMatchersEarly = userPantryListEarly.map((raw) => ({ raw, baseName: extractBaseNameEarly(raw) }));
 
   function isUserPantryItem(ingredientName: string): boolean {
     const lower = ingredientName.toLowerCase();
@@ -1442,117 +1422,67 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     });
   }
 
+  // Sort by meal type order
+  const typeOrder: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
+  selected.sort((a, b) => typeOrder.indexOf(a.mealType || "dinner") - typeOrder.indexOf(b.mealType || "dinner"));
+
   const meals: Meal[] = selected.map((recipe, i) => {
     const badges: string[] = [];
-    // Mark ingredients as pantry based on user input
-    const ingredients = recipe.ingredients.map((ing) => ({
-      ...ing,
-      pantry: isUserPantryItem(ing.name),
-    }));
+    const ingredients = recipe.ingredients.map((ing) => ({ ...ing, pantry: isUserPantryItem(ing.name) }));
     const pantryCount = ingredients.filter((ing) => ing.pantry).length;
-    if (pantryCount > 0) {
-      badges.push(`Uses ${pantryCount} pantry item${pantryCount > 1 ? "s" : ""}`);
-    }
+    if (pantryCount > 0) badges.push(`Uses ${pantryCount} pantry item${pantryCount > 1 ? "s" : ""}`);
     for (const ing of ingredients) {
       const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
       const count = shared.get(key) || 0;
-      if (count >= 2) {
-        badges.push(`${key} used in ${count} meals`);
-        break;
-      }
+      if (count >= 2) { badges.push(`${key} used in ${count} meals`); break; }
     }
-
     const scaleFactor = perMealBudget / 5;
     const baseCost = ingredients.reduce((sum, ing) => sum + ing.cost, 0);
     const adjustedCost = Math.max(2, baseCost * Math.min(1.5, Math.max(0.7, scaleFactor))).toFixed(2);
     badges.push(`Est. cost: ~$${adjustedCost}`);
-
     return {
-      ...recipe,
-      ingredients,
-      day: DAYS[i % DAYS.length],
+      ...recipe, ingredients, day: DAYS[i % DAYS.length],
       mealType: recipe.mealType || "dinner" as MealType,
-      estimatedCost: `$${adjustedCost}`,
-      reuseBadges: badges,
-      tags: dietaryTags.length > 0
-        ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), ...dietaryTags]
-        : recipe.tags,
+      estimatedCost: `$${adjustedCost}`, reuseBadges: badges,
+      tags: dietaryTags.length > 0 ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), ...dietaryTags] : recipe.tags,
       cooked: false,
     };
   });
 
-  const userPantryList = userPantryListEarly;
   const pantryMatchers = pantryMatchersEarly;
-  const pantryCostAccumulator = new Map<string, number>(
-    userPantryList.map((item) => [item, 0])
-  );
-
-  const lists: Record<string, ShoppingListItem[]> = {
-    produce: [],
-    dairy: [],
-    plantBased: [],
-    dryGoods: [],
-    spicesCondiments: [],
-  };
-
-  const allIngredients: ShoppingListItem[] = meals.flatMap((meal) =>
-    meal.ingredients.map((ing) => ({ name: ing.name, cost: ing.cost }))
-  );
+  const pantryCostAccumulator = new Map<string, number>(userPantryListEarly.map((item) => [item, 0]));
+  const lists: Record<string, ShoppingListItem[]> = { produce: [], dairy: [], plantBased: [], dryGoods: [], spicesCondiments: [] };
+  const allIngredients: ShoppingListItem[] = meals.flatMap((meal) => meal.ingredients.map((ing) => ({ name: ing.name, cost: ing.cost })));
 
   for (const ing of allIngredients) {
-    const lower = ing.name.toLowerCase();
     const matchedPantry = pantryMatchers.find(({ baseName }) => {
       const regex = new RegExp(`(^|\\s|\\d)${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(s|es)?($|\\s|,)`, 'i');
-      return regex.test(lower);
+      return regex.test(ing.name.toLowerCase());
     });
-
     if (matchedPantry) {
-      pantryCostAccumulator.set(
-        matchedPantry.raw,
-        (pantryCostAccumulator.get(matchedPantry.raw) || 0) + ing.cost
-      );
+      pantryCostAccumulator.set(matchedPantry.raw, (pantryCostAccumulator.get(matchedPantry.raw) || 0) + ing.cost);
       continue;
     }
-
-    const category = categorizeItem(ing.name);
-    lists[category].push({ name: ing.name, cost: ing.cost });
+    lists[categorizeItem(ing.name)].push({ name: ing.name, cost: ing.cost });
   }
 
-  const pantryItemsList: ShoppingListItem[] = userPantryList.map((name) => ({
-    name,
-    cost: pantryCostAccumulator.get(name) || 0,
-  }));
-
-  const produce = lists.produce;
-  const dairy = lists.dairy;
-  const plantBased = lists.plantBased;
-  const dryGoods = lists.dryGoods;
-  const spicesCondiments = lists.spicesCondiments;
-  const allShoppingItems = [...produce, ...dairy, ...plantBased, ...dryGoods, ...spicesCondiments];
+  const pantryItemsList: ShoppingListItem[] = userPantryListEarly.map((name) => ({ name, cost: pantryCostAccumulator.get(name) || 0 }));
+  const allShoppingItems = [...lists.produce, ...lists.dairy, ...lists.plantBased, ...lists.dryGoods, ...lists.spicesCondiments];
   const totalCost = allShoppingItems.reduce((sum, item) => sum + item.cost, 0);
-
   const lowCost = Math.floor(totalCost * 0.9);
   const highCost = Math.ceil(totalCost * 1.1);
 
-
-
   return {
     metrics: {
-      dinners: numMeals,
-      costRange: `$${lowCost}–$${highCost}`,
-      costLow: lowCost,
-      costHigh: highCost,
+      totalMeals, mealCounts: { breakfast: breakfastCount, lunch: lunchCount, dinner: dinnerCount, snack: snackCount },
+      costRange: `$${lowCost}–$${highCost}`, costLow: lowCost, costHigh: highCost,
       reuseScore: `${reusePercent}% of ingredients used in 2+ meals`,
     },
     meals,
     shoppingList: {
-      produce,
-      dairy,
-      plantBased,
-      dryGoods,
-      spicesCondiments,
-      totalItems: allShoppingItems.length,
-      estimatedCost: `$${Math.round(totalCost)}`,
+      produce: lists.produce, dairy: lists.dairy, plantBased: lists.plantBased,
+      dryGoods: lists.dryGoods, spicesCondiments: lists.spicesCondiments,
+      totalItems: allShoppingItems.length, estimatedCost: `$${Math.round(totalCost)}`,
     },
     pantryItems: pantryItemsList,
   };
