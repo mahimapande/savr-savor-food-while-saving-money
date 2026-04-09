@@ -143,16 +143,44 @@ const Index = () => {
             />
           </div>
 
-          {/* Meals */}
-          <div className="space-y-2">
-            <Label htmlFor="meals">Number of meals</Label>
-            <Input
-              id="meals"
-              type="number"
-              placeholder="e.g. 5"
-              value={meals}
-              onChange={(e) => setMeals(e.target.value)}
-            />
+          {/* Meal Counts */}
+          <div className="space-y-3">
+            <Label>Meals per week</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { key: "breakfast" as const, label: "Breakfasts" },
+                { key: "lunch" as const, label: "Lunches" },
+                { key: "dinner" as const, label: "Dinners" },
+                { key: "snack" as const, label: "Snacks" },
+              ]).map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                  <span className="text-sm text-foreground">{label}</span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setMealCounts((prev) => ({ ...prev, [key]: Math.max(0, prev[key] - 1) }))}
+                      disabled={mealCounts[key] === 0}
+                    >
+                      −
+                    </Button>
+                    <span className="w-5 text-center text-sm font-medium">{mealCounts[key]}</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setMealCounts((prev) => ({ ...prev, [key]: Math.min(7, prev[key] + 1) }))}
+                      disabled={mealCounts[key] === 7}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Dietary */}
