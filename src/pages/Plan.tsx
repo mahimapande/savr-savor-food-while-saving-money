@@ -1,10 +1,10 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem } from "@/data/mockData";
+import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem, MealType } from "@/data/mockData";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight, Package, ArrowRight, ArrowLeft, PiggyBank, Check } from "lucide-react";
+import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight, Package, ArrowRight, ArrowLeft, PiggyBank, Check, Sun, Coffee, UtensilsCrossed, Cookie } from "lucide-react";
 
 const HAVE_STORAGE_KEY = "savr-have-items";
 const WEEKLY_PLAN_KEY = "weeklyPlan";
