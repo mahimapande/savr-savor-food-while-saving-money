@@ -5,6 +5,8 @@ export interface Ingredient {
   cost: number; // per-item estimated cost in dollars
 }
 
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
 export interface Meal {
   id: string;
   day: string;
@@ -17,11 +19,13 @@ export interface Meal {
   ingredients: Ingredient[];
   steps: string[];
   cooked?: boolean;
+  mealType: MealType;
 }
 
 export interface PlanData {
   metrics: {
-    dinners: number;
+    totalMeals: number;
+    mealCounts: { breakfast: number; lunch: number; dinner: number; snack: number };
     costRange: string;
     costLow: number;
     costHigh: number;
@@ -29,7 +33,7 @@ export interface PlanData {
   };
   meals: Meal[];
   shoppingList: ShoppingList;
-  pantryItems: ShoppingListItem[]; // items excluded because user already has them
+  pantryItems: ShoppingListItem[];
 }
 
 export interface ShoppingListItem {
@@ -54,12 +58,19 @@ export interface FormInputs {
   cuisines: string[];
   pantryItems: string[];
   preference: string;
+  mealCounts?: {
+    breakfast: number;
+    lunch: number;
+    dinner: number;
+    snack: number;
+  };
 }
 
 // Recipe pool with realistic quantities and per-item costs
 // Each recipe now has a cuisine tag for filtering
-interface RecipeWithCuisine extends Omit<Meal, "day"> {
+interface RecipeWithCuisine extends Omit<Meal, "day" | "mealType" | "cooked"> {
   cuisine: string;
+  mealType?: MealType;
 }
 
 const RECIPE_POOL: RecipeWithCuisine[] = [
@@ -883,6 +894,320 @@ const VEGAN_EXTRA_POOL: RecipeWithCuisine[] = [
     ],
   },
 ];
+
+const BREAKFAST_POOL: RecipeWithCuisine[] = [
+  {
+    id: "classic-oatmeal",
+    name: "Classic Oatmeal with Fruit",
+    cuisine: "American",
+    duration: "10 min",
+    servings: 1,
+    tags: ["10 mins", "1 serving", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$1.50",
+    ingredients: [
+      { name: "1 cup rolled oats", cost: 0.30 },
+      { name: "1 banana", cost: 0.25 },
+      { name: "1 tbsp honey", cost: 0.20 },
+      { name: "1/4 cup blueberries", cost: 0.50 },
+      { name: "1 cup oat milk", cost: 0.40 },
+    ],
+    steps: ["Bring oat milk to a simmer, add oats", "Cook 5 min, stirring occasionally", "Top with sliced banana, blueberries, and honey"],
+  },
+  {
+    id: "scrambled-eggs-toast",
+    name: "Scrambled Eggs on Toast",
+    cuisine: "American",
+    duration: "10 min",
+    servings: 1,
+    tags: ["10 mins", "1 serving", "Vegetarian"],
+    reuseBadges: [],
+    estimatedCost: "$2.00",
+    ingredients: [
+      { name: "2 large eggs", cost: 0.50 },
+      { name: "2 slices bread", cost: 0.30 },
+      { name: "1 tbsp butter", cost: 0.15 },
+      { name: "1/4 cup shredded cheddar cheese", cost: 0.40 },
+    ],
+    steps: ["Whisk eggs with a pinch of salt", "Melt butter in a pan, scramble eggs on medium-low", "Toast bread, top with eggs and cheese"],
+  },
+  {
+    id: "yogurt-granola-bowl",
+    name: "Yogurt & Granola Bowl",
+    cuisine: "American",
+    duration: "5 min",
+    servings: 1,
+    tags: ["5 mins", "1 serving", "Vegetarian"],
+    reuseBadges: [],
+    estimatedCost: "$2.50",
+    ingredients: [
+      { name: "1 cup yogurt", cost: 0.80 },
+      { name: "1/2 cup granola", cost: 0.60 },
+      { name: "1/2 cup mixed berries", cost: 0.75 },
+      { name: "1 tbsp honey", cost: 0.20 },
+    ],
+    steps: ["Spoon yogurt into a bowl", "Top with granola and berries", "Drizzle with honey"],
+  },
+  {
+    id: "avocado-toast-breakfast",
+    name: "Avocado Toast",
+    cuisine: "American",
+    duration: "10 min",
+    servings: 1,
+    tags: ["10 mins", "1 serving", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$2.80",
+    ingredients: [
+      { name: "2 slices bread", cost: 0.30 },
+      { name: "1 ripe avocado", cost: 1.00 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
+      { name: "1/2 lemon", cost: 0.20 },
+      { name: "1 medium tomato", cost: 0.50 },
+    ],
+    steps: ["Toast bread until golden", "Mash avocado with lemon juice and salt", "Spread on toast, top with sliced tomato"],
+  },
+  {
+    id: "smoothie-bowl",
+    name: "Tropical Smoothie Bowl",
+    cuisine: "American",
+    duration: "5 min",
+    servings: 1,
+    tags: ["5 mins", "1 serving", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$3.00",
+    ingredients: [
+      { name: "1 banana", cost: 0.25 },
+      { name: "1/2 cup frozen mango", cost: 0.75 },
+      { name: "1 cup oat milk", cost: 0.40 },
+      { name: "1/4 cup granola", cost: 0.30 },
+      { name: "1 tbsp chia seeds", cost: 0.30 },
+    ],
+    steps: ["Blend banana, mango, and oat milk until smooth", "Pour into a bowl", "Top with granola and chia seeds"],
+  },
+  {
+    id: "pancakes",
+    name: "Fluffy Pancakes",
+    cuisine: "American",
+    duration: "20 min",
+    servings: 2,
+    tags: ["20 mins", "2 servings", "Vegetarian"],
+    reuseBadges: [],
+    estimatedCost: "$2.50",
+    ingredients: [
+      { name: "1 cup flour", cost: 0.20 },
+      { name: "2 large eggs", cost: 0.50 },
+      { name: "1 cup milk", cost: 0.30 },
+      { name: "2 tbsp butter", cost: 0.30 },
+      { name: "2 tbsp maple syrup", cost: 0.40 },
+    ],
+    steps: ["Mix flour, eggs, and milk into a smooth batter", "Melt butter in a pan on medium heat", "Pour batter and cook until bubbles form, flip", "Serve with maple syrup"],
+  },
+];
+
+const LUNCH_POOL: RecipeWithCuisine[] = [
+  {
+    id: "veggie-grain-bowl",
+    name: "Mediterranean Grain Bowl",
+    cuisine: "Italian",
+    duration: "20 min",
+    servings: 1,
+    tags: ["20 mins", "1 serving", "Vegetarian"],
+    reuseBadges: [],
+    estimatedCost: "$3.50",
+    ingredients: [
+      { name: "1 cup cooked quinoa", cost: 0.60 },
+      { name: "1/2 cup cherry tomatoes", cost: 0.50 },
+      { name: "1/4 cup feta cheese", cost: 0.60 },
+      { name: "1/4 cup olives", cost: 0.50 },
+      { name: "1/2 cucumber", cost: 0.40 },
+      { name: "1 tbsp olive oil", cost: 0.15 },
+      { name: "1 tbsp balsamic vinegar", cost: 0.15 },
+    ],
+    steps: ["Cook quinoa if not prepared ahead", "Chop tomatoes, cucumber, and olives", "Arrange over quinoa, top with feta", "Drizzle with olive oil and balsamic"],
+  },
+  {
+    id: "tomato-soup-grilled-cheese",
+    name: "Tomato Soup & Grilled Cheese",
+    cuisine: "American",
+    duration: "25 min",
+    servings: 2,
+    tags: ["25 mins", "2 servings", "Vegetarian"],
+    reuseBadges: [],
+    estimatedCost: "$4.50",
+    ingredients: [
+      { name: "1 can crushed tomatoes (28 oz)", cost: 1.29 },
+      { name: "4 slices bread", cost: 0.60 },
+      { name: "4 slices cheddar cheese", cost: 1.00 },
+      { name: "2 tbsp butter", cost: 0.30 },
+      { name: "1 clove garlic", cost: 0.10 },
+      { name: "1 tsp Italian seasoning", cost: 0.08 },
+    ],
+    steps: ["Simmer tomatoes with garlic and seasoning for 15 min", "Blend soup until smooth", "Butter bread, add cheese, grill until golden", "Serve soup with grilled cheese"],
+  },
+  {
+    id: "rice-and-beans-bowl",
+    name: "Rice & Beans Bowl",
+    cuisine: "Mexican",
+    duration: "20 min",
+    servings: 1,
+    tags: ["20 mins", "1 serving", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$2.80",
+    ingredients: [
+      { name: "1 cup jasmine rice", cost: 0.40 },
+      { name: "1 can black beans (15 oz)", cost: 0.79 },
+      { name: "1 ripe avocado", cost: 1.00 },
+      { name: "1 lime", cost: 0.25 },
+      { name: "1 tsp cumin", cost: 0.08 },
+      { name: "1 tbsp hot sauce", cost: 0.10 },
+    ],
+    steps: ["Cook rice according to package", "Heat beans with cumin", "Assemble bowl with rice, beans, and avocado", "Squeeze lime and add hot sauce"],
+  },
+  {
+    id: "veggie-noodle-bowl",
+    name: "Quick Veggie Noodle Bowl",
+    cuisine: "Thai",
+    duration: "15 min",
+    servings: 1,
+    tags: ["15 mins", "1 serving", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$3.20",
+    ingredients: [
+      { name: "4 oz rice noodles", cost: 0.60 },
+      { name: "1 cup broccoli florets (6 oz)", cost: 1.00 },
+      { name: "1 medium carrot", cost: 0.30 },
+      { name: "2 tbsp soy sauce", cost: 0.15 },
+      { name: "1 tbsp sesame oil", cost: 0.20 },
+      { name: "1 inch fresh ginger, minced", cost: 0.30 },
+    ],
+    steps: ["Cook noodles per package, drain", "Stir-fry vegetables with ginger 3 min", "Toss noodles with soy sauce and sesame oil", "Serve hot"],
+  },
+  {
+    id: "hummus-veggie-wrap",
+    name: "Hummus Veggie Wrap",
+    cuisine: "American",
+    duration: "10 min",
+    servings: 1,
+    tags: ["10 mins", "1 serving", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$3.00",
+    ingredients: [
+      { name: "1 large flour tortilla", cost: 0.50 },
+      { name: "3 tbsp hummus", cost: 0.50 },
+      { name: "1/2 cucumber", cost: 0.40 },
+      { name: "1 medium bell pepper", cost: 1.00 },
+      { name: "1 cup mixed greens", cost: 0.50 },
+    ],
+    steps: ["Spread hummus on tortilla", "Slice cucumber and pepper into strips", "Layer veggies and greens on tortilla", "Roll tightly and slice in half"],
+  },
+  {
+    id: "miso-soup-lunch",
+    name: "Miso Soup with Tofu",
+    cuisine: "Japanese",
+    duration: "15 min",
+    servings: 2,
+    tags: ["15 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$3.00",
+    ingredients: [
+      { name: "2 tbsp miso paste", cost: 0.50 },
+      { name: "1/2 block firm tofu (7 oz)", cost: 1.15 },
+      { name: "2 cups vegetable broth", cost: 0.60 },
+      { name: "1 cup spinach", cost: 0.50 },
+      { name: "1 tbsp soy sauce", cost: 0.10 },
+    ],
+    steps: ["Bring broth to a simmer", "Cube tofu and add to broth", "Stir in miso paste and spinach", "Season with soy sauce and serve"],
+  },
+];
+
+const SNACK_POOL: RecipeWithCuisine[] = [
+  {
+    id: "trail-mix",
+    name: "Homemade Trail Mix",
+    cuisine: "American",
+    duration: "5 min",
+    servings: 4,
+    tags: ["5 mins", "4 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$3.00",
+    ingredients: [
+      { name: "1 cup almonds", cost: 1.20 },
+      { name: "1/2 cup dried cranberries", cost: 0.80 },
+      { name: "1/2 cup sunflower seeds", cost: 0.50 },
+      { name: "1/4 cup dark chocolate chips", cost: 0.50 },
+    ],
+    steps: ["Combine all ingredients in a bowl", "Mix well and divide into portions", "Store in airtight container"],
+  },
+  {
+    id: "veggie-sticks-hummus",
+    name: "Veggie Sticks & Hummus",
+    cuisine: "American",
+    duration: "5 min",
+    servings: 2,
+    tags: ["5 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$2.50",
+    ingredients: [
+      { name: "2 medium carrots", cost: 0.60 },
+      { name: "1/2 cucumber", cost: 0.40 },
+      { name: "1 medium bell pepper", cost: 1.00 },
+      { name: "1/4 cup hummus", cost: 0.50 },
+    ],
+    steps: ["Wash and slice vegetables into sticks", "Serve with hummus for dipping"],
+  },
+  {
+    id: "energy-bites",
+    name: "No-Bake Energy Bites",
+    cuisine: "American",
+    duration: "15 min",
+    servings: 6,
+    tags: ["15 mins", "6 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$3.50",
+    ingredients: [
+      { name: "1 cup rolled oats", cost: 0.30 },
+      { name: "1/2 cup tahini", cost: 1.00 },
+      { name: "1/4 cup honey", cost: 0.60 },
+      { name: "1/4 cup dark chocolate chips", cost: 0.50 },
+      { name: "2 tbsp chia seeds", cost: 0.60 },
+    ],
+    steps: ["Mix all ingredients in a bowl until combined", "Roll into small balls", "Refrigerate 30 min before serving"],
+  },
+  {
+    id: "fruit-and-cheese",
+    name: "Fruit & Cheese Plate",
+    cuisine: "American",
+    duration: "5 min",
+    servings: 2,
+    tags: ["5 mins", "2 servings", "Vegetarian"],
+    reuseBadges: [],
+    estimatedCost: "$3.00",
+    ingredients: [
+      { name: "1 apple", cost: 0.75 },
+      { name: "4 oz cheddar cheese", cost: 1.50 },
+      { name: "1/4 cup almonds", cost: 0.30 },
+      { name: "1/4 cup dried cranberries", cost: 0.40 },
+    ],
+    steps: ["Slice apple and cheese", "Arrange on a plate with almonds and cranberries"],
+  },
+  {
+    id: "banana-bites",
+    name: "Frozen Banana Bites",
+    cuisine: "American",
+    duration: "10 min",
+    servings: 2,
+    tags: ["10 mins", "2 servings", "Vegan"],
+    reuseBadges: [],
+    estimatedCost: "$2.00",
+    ingredients: [
+      { name: "2 bananas", cost: 0.50 },
+      { name: "2 tbsp tahini", cost: 0.40 },
+      { name: "1/4 cup dark chocolate chips", cost: 0.50 },
+    ],
+    steps: ["Slice bananas into rounds", "Spread tahini between two slices", "Dip in melted chocolate, freeze 1 hour"],
+  },
+];
+
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const DIETARY_TAGS = ["Vegetarian", "Vegan", "Pescatarian"];
@@ -913,7 +1238,7 @@ function getDietaryTags(preferences: DietaryPreference[]): string[] {
   return tags;
 }
 
-function matchesDietMulti(recipe: Omit<Meal, "day">, preferences: DietaryPreference[]): boolean {
+function matchesDietMulti(recipe: RecipeWithCuisine, preferences: DietaryPreference[]): boolean {
   if (preferences.includes("any")) return true;
   const hasTag = (tag: string) => recipe.tags.some((t) => t.toLowerCase() === tag.toLowerCase());
   // Recipe is valid if it matches ANY of the user's dietary preferences
@@ -925,7 +1250,7 @@ function matchesDietMulti(recipe: Omit<Meal, "day">, preferences: DietaryPrefere
   });
 }
 
-function ensureMealCount<T extends Omit<Meal, "day">>(recipes: T[], count: number): T[] {
+function ensureMealCount<T extends RecipeWithCuisine>(recipes: T[], count: number): T[] {
   if (recipes.length >= count) return recipes.slice(0, count);
   if (recipes.length === 0) return [];
 
@@ -955,7 +1280,7 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
   return copy;
 }
 
-function findSharedIngredients(meals: Omit<Meal, "day">[]): Map<string, number> {
+function findSharedIngredients(meals: RecipeWithCuisine[]): Map<string, number> {
   const ingredientCount = new Map<string, number>();
   for (const meal of meals) {
     const seen = new Set<string>();
@@ -989,64 +1314,57 @@ export function categorizeItem(name: string): keyof Omit<ShoppingList, "totalIte
 }
 
 export function generatePlan(inputs?: FormInputs): PlanData {
-  const numMeals = Math.min(7, Math.max(2, parseInt(inputs?.meals || "5") || 5));
+  const mc = inputs?.mealCounts || { breakfast: 0, lunch: 0, dinner: Math.min(7, Math.max(2, parseInt(inputs?.meals || "5") || 5)), snack: 0 };
+  const dinnerCount = Math.min(7, Math.max(0, mc.dinner));
+  const breakfastCount = Math.min(7, Math.max(0, mc.breakfast));
+  const lunchCount = Math.min(7, Math.max(0, mc.lunch));
+  const snackCount = Math.min(7, Math.max(0, mc.snack));
+  const totalMeals = breakfastCount + lunchCount + dinnerCount + snackCount;
   const budgetNum = parseFloat(inputs?.budget || "60") || 60;
-  const perMealBudget = budgetNum / numMeals;
+  const perMealBudget = totalMeals > 0 ? budgetNum / totalMeals : 12;
   const dietaryPreferences = normalizeDietaryList(inputs?.dietary);
   const dietaryTags = getDietaryTags(dietaryPreferences);
-  const mergedPool: RecipeWithCuisine[] = [...RECIPE_POOL, ...PESCATARIAN_POOL, ...VEGAN_EXTRA_POOL];
+  const dinnerPool: RecipeWithCuisine[] = [...RECIPE_POOL, ...PESCATARIAN_POOL, ...VEGAN_EXTRA_POOL];
   const userCuisines = (inputs?.cuisines || []).map((c) => c.toLowerCase().trim());
-
   const seed = Date.now();
-  const filteredPool = mergedPool.filter((recipe) => matchesDietMulti(recipe, dietaryPreferences));
 
-  // Separate cuisine-matching recipes from the rest
   function matchesCuisine(recipe: RecipeWithCuisine): boolean {
     if (userCuisines.length === 0) return false;
     return userCuisines.some((c) => recipe.cuisine.toLowerCase() === c);
   }
 
-  let selectedBase: RecipeWithCuisine[];
-  if (dietaryPreferences.includes("pescatarian")) {
-    const anchorIds = [
-      "grilled-salmon-veggies",
-      "tuna-rice-bowl",
-      "shrimp-stir-fry",
-      "leftover-salmon-salad",
-    ];
-    const anchors = anchorIds
-      .map((id) => PESCATARIAN_POOL.find((recipe) => recipe.id === id))
-      .filter((recipe): recipe is RecipeWithCuisine => Boolean(recipe));
-    const extras = seededShuffle(
-      PESCATARIAN_POOL.filter((recipe) => !anchorIds.includes(recipe.id)),
-      seed
-    );
-    selectedBase = ensureMealCount([...anchors, ...extras], numMeals);
-  } else {
-    // Prioritize recipes matching selected cuisines
-    const cuisineMatches = seededShuffle(filteredPool.filter(matchesCuisine), seed);
-    const others = seededShuffle(filteredPool.filter((r) => !matchesCuisine(r)), seed);
-    // Fill at least half the slots with cuisine matches if available
-    const minCuisineSlots = userCuisines.length > 0 ? Math.ceil(numMeals * 0.6) : 0;
+  function selectFromPool(pool: RecipeWithCuisine[], count: number, mealType: MealType): RecipeWithCuisine[] {
+    if (count === 0) return [];
+    const filtered = pool.filter((r) => matchesDietMulti(r, dietaryPreferences));
+    const cuisineMatches = seededShuffle(filtered.filter(matchesCuisine), seed);
+    const others = seededShuffle(filtered.filter((r) => !matchesCuisine(r)), seed);
+    const minCuisineSlots = userCuisines.length > 0 ? Math.ceil(count * 0.6) : 0;
     const cuisinePick = cuisineMatches.slice(0, Math.max(minCuisineSlots, cuisineMatches.length));
     const combined = [...cuisinePick, ...others];
-    // Deduplicate by id
     const seen = new Set<string>();
     const unique = combined.filter((r) => { if (seen.has(r.id)) return false; seen.add(r.id); return true; });
-    selectedBase = ensureMealCount(unique, numMeals);
+    return ensureMealCount(unique, count).map((r) => ({ ...r, mealType }));
   }
 
-  let selected = selectedBase.length > 0
-    ? selectedBase
-    : ensureMealCount(seededShuffle(mergedPool, seed), numMeals);
+  const breakfastSelected = selectFromPool(BREAKFAST_POOL, breakfastCount, "breakfast");
+  const lunchSelected = selectFromPool(LUNCH_POOL, lunchCount, "lunch");
+  const snackSelected = selectFromPool(SNACK_POOL, snackCount, "snack");
 
-  // Apply preference-based selection/sorting
+  let dinnerSelected: RecipeWithCuisine[];
+  if (dietaryPreferences.includes("pescatarian") && dinnerCount > 0) {
+    const anchorIds = ["grilled-salmon-veggies", "tuna-rice-bowl", "shrimp-stir-fry", "leftover-salmon-salad"];
+    const anchors = anchorIds.map((id) => PESCATARIAN_POOL.find((r) => r.id === id)).filter((r): r is RecipeWithCuisine => Boolean(r));
+    const extras = seededShuffle(PESCATARIAN_POOL.filter((r) => !anchorIds.includes(r.id)), seed);
+    dinnerSelected = ensureMealCount([...anchors, ...extras], dinnerCount).map((r) => ({ ...r, mealType: "dinner" as MealType }));
+  } else {
+    dinnerSelected = selectFromPool(dinnerPool, dinnerCount, "dinner");
+  }
+
+  let selected = [...breakfastSelected, ...lunchSelected, ...dinnerSelected, ...snackSelected];
+
   if (inputs?.preference === "savings") {
-    // For savings: pick recipes that share the most ingredients and are cheapest
-    // Score each recipe by how many ingredients overlap with others in the pool
     const sharedEarly = findSharedIngredients(selected);
     selected.sort((a, b) => {
-      // Higher reuse score = better for savings
       const reuseA = a.ingredients.reduce((sum, ing) => {
         const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
         return sum + (sharedEarly.get(key) || 0);
@@ -1055,35 +1373,28 @@ export function generatePlan(inputs?: FormInputs): PlanData {
         const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
         return sum + (sharedEarly.get(key) || 0);
       }, 0);
-      // Sort by reuse (desc), then cost (asc)
       if (reuseB !== reuseA) return reuseB - reuseA;
       return parseFloat(a.estimatedCost.replace("$", "")) - parseFloat(b.estimatedCost.replace("$", ""));
     });
   } else if (inputs?.preference === "variety") {
-    // For variety: maximize cuisine diversity and minimize ingredient overlap
-    // Re-select to spread across as many cuisines as possible
     const cuisineGroups = new Map<string, RecipeWithCuisine[]>();
     for (const r of selected) {
       const list = cuisineGroups.get(r.cuisine) || [];
       list.push(r);
       cuisineGroups.set(r.cuisine, list);
     }
-    // Round-robin pick from each cuisine group
     const varietyPick: RecipeWithCuisine[] = [];
     const groupIters = [...cuisineGroups.values()].map((g) => ({ items: g, idx: 0 }));
-    while (varietyPick.length < numMeals && groupIters.some((g) => g.idx < g.items.length)) {
+    while (varietyPick.length < selected.length && groupIters.some((g) => g.idx < g.items.length)) {
       for (const g of groupIters) {
-        if (g.idx < g.items.length && varietyPick.length < numMeals) {
+        if (g.idx < g.items.length && varietyPick.length < selected.length) {
           varietyPick.push(g.items[g.idx]);
           g.idx++;
         }
       }
     }
-    if (varietyPick.length >= numMeals) {
-      selected = varietyPick.slice(0, numMeals);
-    }
+    if (varietyPick.length >= selected.length) selected = varietyPick;
   }
-  // "balanced" keeps the default selection order (mix of cost and variety)
 
   const shared = findSharedIngredients(selected);
   const reuseEntries = [...shared.entries()].filter(([, count]) => count >= 2);
@@ -1091,10 +1402,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const reusedIngredients = reuseEntries.reduce((sum, [, count]) => sum + count, 0);
   const reusePercent = totalIngredients > 0 ? Math.round((reusedIngredients / totalIngredients) * 100) : 0;
 
-  // Build pantry matchers early so we can mark ingredients
-  const userPantryListEarly = Array.from(
-    new Set((inputs?.pantryItems || []).map((p) => p.trim()).filter(Boolean))
-  );
+  const userPantryListEarly = Array.from(new Set((inputs?.pantryItems || []).map((p) => p.trim()).filter(Boolean)));
   const STRIP_QTY_RE_EARLY = /^[\d./]+\s*/;
   const STRIP_UNIT_RE_EARLY = /^(cups?|gallons?|sticks?|cans?|tbsp|tsp|oz|lbs?|large|small|medium|dozen|bunch(es)?|cloves?|blocks?|bags?|boxes?|bottles?|jars?|cartons?|pints?|quarts?|liters?)\s+/i;
   function extractBaseNameEarly(input: string): string {
@@ -1104,10 +1412,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     s = s.replace(STRIP_UNIT_RE_EARLY, "").trim();
     return s || input.toLowerCase().trim();
   }
-  const pantryMatchersEarly = userPantryListEarly.map((raw) => ({
-    raw,
-    baseName: extractBaseNameEarly(raw),
-  }));
+  const pantryMatchersEarly = userPantryListEarly.map((raw) => ({ raw, baseName: extractBaseNameEarly(raw) }));
 
   function isUserPantryItem(ingredientName: string): boolean {
     const lower = ingredientName.toLowerCase();
@@ -1117,116 +1422,67 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     });
   }
 
+  // Sort by meal type order
+  const typeOrder: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
+  selected.sort((a, b) => typeOrder.indexOf(a.mealType || "dinner") - typeOrder.indexOf(b.mealType || "dinner"));
+
   const meals: Meal[] = selected.map((recipe, i) => {
     const badges: string[] = [];
-    // Mark ingredients as pantry based on user input
-    const ingredients = recipe.ingredients.map((ing) => ({
-      ...ing,
-      pantry: isUserPantryItem(ing.name),
-    }));
+    const ingredients = recipe.ingredients.map((ing) => ({ ...ing, pantry: isUserPantryItem(ing.name) }));
     const pantryCount = ingredients.filter((ing) => ing.pantry).length;
-    if (pantryCount > 0) {
-      badges.push(`Uses ${pantryCount} pantry item${pantryCount > 1 ? "s" : ""}`);
-    }
+    if (pantryCount > 0) badges.push(`Uses ${pantryCount} pantry item${pantryCount > 1 ? "s" : ""}`);
     for (const ing of ingredients) {
       const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
       const count = shared.get(key) || 0;
-      if (count >= 2) {
-        badges.push(`${key} used in ${count} meals`);
-        break;
-      }
+      if (count >= 2) { badges.push(`${key} used in ${count} meals`); break; }
     }
-
     const scaleFactor = perMealBudget / 5;
     const baseCost = ingredients.reduce((sum, ing) => sum + ing.cost, 0);
     const adjustedCost = Math.max(2, baseCost * Math.min(1.5, Math.max(0.7, scaleFactor))).toFixed(2);
     badges.push(`Est. cost: ~$${adjustedCost}`);
-
     return {
-      ...recipe,
-      ingredients,
-      day: DAYS[i],
-      estimatedCost: `$${adjustedCost}`,
-      reuseBadges: badges,
-      tags: dietaryTags.length > 0
-        ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), ...dietaryTags]
-        : recipe.tags,
+      ...recipe, ingredients, day: DAYS[i % DAYS.length],
+      mealType: recipe.mealType || "dinner" as MealType,
+      estimatedCost: `$${adjustedCost}`, reuseBadges: badges,
+      tags: dietaryTags.length > 0 ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), ...dietaryTags] : recipe.tags,
       cooked: false,
     };
   });
 
-  const userPantryList = userPantryListEarly;
   const pantryMatchers = pantryMatchersEarly;
-  const pantryCostAccumulator = new Map<string, number>(
-    userPantryList.map((item) => [item, 0])
-  );
-
-  const lists: Record<string, ShoppingListItem[]> = {
-    produce: [],
-    dairy: [],
-    plantBased: [],
-    dryGoods: [],
-    spicesCondiments: [],
-  };
-
-  const allIngredients: ShoppingListItem[] = meals.flatMap((meal) =>
-    meal.ingredients.map((ing) => ({ name: ing.name, cost: ing.cost }))
-  );
+  const pantryCostAccumulator = new Map<string, number>(userPantryListEarly.map((item) => [item, 0]));
+  const lists: Record<string, ShoppingListItem[]> = { produce: [], dairy: [], plantBased: [], dryGoods: [], spicesCondiments: [] };
+  const allIngredients: ShoppingListItem[] = meals.flatMap((meal) => meal.ingredients.map((ing) => ({ name: ing.name, cost: ing.cost })));
 
   for (const ing of allIngredients) {
-    const lower = ing.name.toLowerCase();
     const matchedPantry = pantryMatchers.find(({ baseName }) => {
       const regex = new RegExp(`(^|\\s|\\d)${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(s|es)?($|\\s|,)`, 'i');
-      return regex.test(lower);
+      return regex.test(ing.name.toLowerCase());
     });
-
     if (matchedPantry) {
-      pantryCostAccumulator.set(
-        matchedPantry.raw,
-        (pantryCostAccumulator.get(matchedPantry.raw) || 0) + ing.cost
-      );
+      pantryCostAccumulator.set(matchedPantry.raw, (pantryCostAccumulator.get(matchedPantry.raw) || 0) + ing.cost);
       continue;
     }
-
-    const category = categorizeItem(ing.name);
-    lists[category].push({ name: ing.name, cost: ing.cost });
+    lists[categorizeItem(ing.name)].push({ name: ing.name, cost: ing.cost });
   }
 
-  const pantryItemsList: ShoppingListItem[] = userPantryList.map((name) => ({
-    name,
-    cost: pantryCostAccumulator.get(name) || 0,
-  }));
-
-  const produce = lists.produce;
-  const dairy = lists.dairy;
-  const plantBased = lists.plantBased;
-  const dryGoods = lists.dryGoods;
-  const spicesCondiments = lists.spicesCondiments;
-  const allShoppingItems = [...produce, ...dairy, ...plantBased, ...dryGoods, ...spicesCondiments];
+  const pantryItemsList: ShoppingListItem[] = userPantryListEarly.map((name) => ({ name, cost: pantryCostAccumulator.get(name) || 0 }));
+  const allShoppingItems = [...lists.produce, ...lists.dairy, ...lists.plantBased, ...lists.dryGoods, ...lists.spicesCondiments];
   const totalCost = allShoppingItems.reduce((sum, item) => sum + item.cost, 0);
-
   const lowCost = Math.floor(totalCost * 0.9);
   const highCost = Math.ceil(totalCost * 1.1);
 
-
-
   return {
     metrics: {
-      dinners: numMeals,
-      costRange: `$${lowCost}–$${highCost}`,
-      costLow: lowCost,
-      costHigh: highCost,
+      totalMeals, mealCounts: { breakfast: breakfastCount, lunch: lunchCount, dinner: dinnerCount, snack: snackCount },
+      costRange: `$${lowCost}–$${highCost}`, costLow: lowCost, costHigh: highCost,
       reuseScore: `${reusePercent}% of ingredients used in 2+ meals`,
     },
     meals,
     shoppingList: {
-      produce,
-      dairy,
-      plantBased,
-      dryGoods,
-      spicesCondiments,
-      totalItems: allShoppingItems.length,
-      estimatedCost: `$${Math.round(totalCost)}`,
+      produce: lists.produce, dairy: lists.dairy, plantBased: lists.plantBased,
+      dryGoods: lists.dryGoods, spicesCondiments: lists.spicesCondiments,
+      totalItems: allShoppingItems.length, estimatedCost: `$${Math.round(totalCost)}`,
     },
     pantryItems: pantryItemsList,
   };
