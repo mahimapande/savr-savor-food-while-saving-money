@@ -57,6 +57,12 @@ export interface FormInputs {
   cuisines: string[];
   pantryItems: string[];
   preference: string;
+  mealCounts?: {
+    breakfast: number;
+    lunch: number;
+    dinner: number;
+    snack: number;
+  };
 }
 
 // Recipe pool with realistic quantities and per-item costs
