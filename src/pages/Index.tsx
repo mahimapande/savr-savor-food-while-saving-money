@@ -92,13 +92,15 @@ const Index = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const totalMeals = mealCounts.breakfast + mealCounts.lunch + mealCounts.dinner + mealCounts.snack;
     const inputs: FormInputs = {
       budget,
-      meals,
+      meals: String(totalMeals),
       dietary,
       cuisines,
       pantryItems: buildPantryItems(),
       preference,
+      mealCounts,
     };
 
     localStorage.clear();
