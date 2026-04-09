@@ -5,6 +5,8 @@ export interface Ingredient {
   cost: number; // per-item estimated cost in dollars
 }
 
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
 export interface Meal {
   id: string;
   day: string;
@@ -17,6 +19,7 @@ export interface Meal {
   ingredients: Ingredient[];
   steps: string[];
   cooked?: boolean;
+  mealType: MealType;
 }
 
 export interface PlanData {
