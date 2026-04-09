@@ -61,8 +61,9 @@ export interface FormInputs {
 
 // Recipe pool with realistic quantities and per-item costs
 // Each recipe now has a cuisine tag for filtering
-interface RecipeWithCuisine extends Omit<Meal, "day" | "mealType"> {
+interface RecipeWithCuisine extends Omit<Meal, "day" | "mealType" | "cooked"> {
   cuisine: string;
+  mealType?: MealType;
 }
 
 const RECIPE_POOL: RecipeWithCuisine[] = [
