@@ -917,7 +917,7 @@ function getDietaryTags(preferences: DietaryPreference[]): string[] {
   return tags;
 }
 
-function matchesDietMulti(recipe: Omit<Meal, "day">, preferences: DietaryPreference[]): boolean {
+function matchesDietMulti(recipe: RecipeWithCuisine, preferences: DietaryPreference[]): boolean {
   if (preferences.includes("any")) return true;
   const hasTag = (tag: string) => recipe.tags.some((t) => t.toLowerCase() === tag.toLowerCase());
   // Recipe is valid if it matches ANY of the user's dietary preferences
@@ -959,7 +959,7 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
   return copy;
 }
 
-function findSharedIngredients(meals: Omit<Meal, "day">[]): Map<string, number> {
+function findSharedIngredients(meals: RecipeWithCuisine[]): Map<string, number> {
   const ingredientCount = new Map<string, number>();
   for (const meal of meals) {
     const seen = new Set<string>();
