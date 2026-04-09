@@ -1149,7 +1149,8 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     return {
       ...recipe,
       ingredients,
-      day: DAYS[i],
+      day: DAYS[i % DAYS.length],
+      mealType: recipe.mealType || "dinner" as MealType,
       estimatedCost: `$${adjustedCost}`,
       reuseBadges: badges,
       tags: dietaryTags.length > 0
