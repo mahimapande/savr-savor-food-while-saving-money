@@ -24,7 +24,8 @@ export interface Meal {
 
 export interface PlanData {
   metrics: {
-    dinners: number;
+    totalMeals: number;
+    mealCounts: { breakfast: number; lunch: number; dinner: number; snack: number };
     costRange: string;
     costLow: number;
     costHigh: number;
@@ -32,7 +33,7 @@ export interface PlanData {
   };
   meals: Meal[];
   shoppingList: ShoppingList;
-  pantryItems: ShoppingListItem[]; // items excluded because user already has them
+  pantryItems: ShoppingListItem[];
 }
 
 export interface ShoppingListItem {
