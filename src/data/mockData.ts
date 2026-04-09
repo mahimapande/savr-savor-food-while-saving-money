@@ -929,7 +929,7 @@ function matchesDietMulti(recipe: Omit<Meal, "day">, preferences: DietaryPrefere
   });
 }
 
-function ensureMealCount<T extends Omit<Meal, "day">>(recipes: T[], count: number): T[] {
+function ensureMealCount<T extends RecipeWithCuisine>(recipes: T[], count: number): T[] {
   if (recipes.length >= count) return recipes.slice(0, count);
   if (recipes.length === 0) return [];
 
