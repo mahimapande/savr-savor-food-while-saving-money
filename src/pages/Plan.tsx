@@ -234,8 +234,8 @@ const Plan = () => {
         <div className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
           <Card className="flex flex-row sm:flex-col items-center gap-2 sm:gap-1 p-3 sm:text-center bg-savr-green-light border-0">
             <ChefHat className="h-5 w-5 text-primary" />
-            <span className="text-lg font-semibold text-foreground">{plan.metrics.dinners}</span>
-            <span className="text-xs text-muted-foreground">dinners planned</span>
+            <span className="text-lg font-semibold text-foreground">{plan.metrics.totalMeals}</span>
+            <span className="text-xs text-muted-foreground">meals planned</span>
           </Card>
           <Card className="flex flex-row sm:flex-col items-center gap-2 sm:gap-1 p-3 sm:text-center bg-savr-orange-light border-0">
             <DollarSign className="h-5 w-5 text-accent" />
