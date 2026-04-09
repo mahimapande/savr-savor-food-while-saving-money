@@ -259,34 +259,50 @@ const Plan = () => {
           </div>
         )}
 
-        {/* Meals */}
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          This week at a glance
-        </h2>
-        <div className="mb-6 space-y-2">
-          {plan.meals.map((meal) => {
-            const isCooked = cookedMeals.has(meal.id);
-            return (
-              <Card
-                key={meal.id}
-                className={`flex cursor-pointer items-center gap-3 p-4 transition-shadow hover:shadow-md active:scale-[0.99] ${isCooked ? "opacity-75 bg-savr-green-light/50" : ""}`}
-                onClick={() => navigate(`/recipe/${meal.id}`, { state: formInputs })}
-              >
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-semibold text-sm ${isCooked ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
-                  {isCooked ? <Check className="h-5 w-5" /> : meal.day}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`font-medium truncate ${isCooked ? "text-muted-foreground line-through" : "text-foreground"}`}>{meal.name}</p>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    {isCooked ? "Cooked ✓" : meal.duration}
-                  </div>
-                </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </Card>
-            );
-          })}
-        </div>
+        {/* Meals grouped by type */}
+        {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map((type) => {
+          const typeMeals = plan.meals.filter((m) => m.mealType === type);
+          if (typeMeals.length === 0) return null;
+          const typeLabels: Record<MealType, { label: string; icon: React.ReactNode }> = {
+            breakfast: { label: "Breakfast", icon: <Coffee className="h-4 w-4 text-primary" /> },
+            lunch: { label: "Lunch", icon: <Sun className="h-4 w-4 text-accent" /> },
+            dinner: { label: "Dinner", icon: <UtensilsCrossed className="h-4 w-4 text-primary" /> },
+            snack: { label: "Snacks", icon: <Cookie className="h-4 w-4 text-accent" /> },
+          };
+          const { label, icon } = typeLabels[type];
+          return (
+            <div key={type} className="mb-4">
+              <div className="mb-2 flex items-center gap-2">
+                {icon}
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{label}</h2>
+              </div>
+              <div className="space-y-2">
+                {typeMeals.map((meal) => {
+                  const isCooked = cookedMeals.has(meal.id);
+                  return (
+                    <Card
+                      key={meal.id}
+                      className={`flex cursor-pointer items-center gap-3 p-4 transition-shadow hover:shadow-md active:scale-[0.99] ${isCooked ? "opacity-75 bg-savr-green-light/50" : ""}`}
+                      onClick={() => navigate(`/recipe/${meal.id}`, { state: formInputs })}
+                    >
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-semibold text-sm ${isCooked ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
+                        {isCooked ? <Check className="h-5 w-5" /> : meal.day}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-medium truncate ${isCooked ? "text-muted-foreground line-through" : "text-foreground"}`}>{meal.name}</p>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {isCooked ? "Cooked ✓" : meal.duration}
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
 
         {/* Two-column lists */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
