@@ -260,50 +260,65 @@ const Plan = () => {
           </div>
         )}
 
-        {/* Meals grouped by type */}
-        {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map((type) => {
-          const typeMeals = plan.meals.filter((m) => m.mealType === type);
-          if (typeMeals.length === 0) return null;
+        {/* Meals by type – tabbed */}
+        {(() => {
           const typeLabels: Record<MealType, { label: string; icon: React.ReactNode }> = {
-            breakfast: { label: "Breakfast", icon: <Coffee className="h-4 w-4 text-primary" /> },
-            lunch: { label: "Lunch", icon: <Sun className="h-4 w-4 text-accent" /> },
-            dinner: { label: "Dinner", icon: <UtensilsCrossed className="h-4 w-4 text-primary" /> },
-            snack: { label: "Snacks", icon: <Cookie className="h-4 w-4 text-accent" /> },
+            breakfast: { label: "Breakfast", icon: <Coffee className="h-4 w-4" /> },
+            lunch: { label: "Lunch", icon: <Sun className="h-4 w-4" /> },
+            dinner: { label: "Dinner", icon: <UtensilsCrossed className="h-4 w-4" /> },
+            snack: { label: "Snacks", icon: <Cookie className="h-4 w-4" /> },
           };
-          const { label, icon } = typeLabels[type];
+          const activeMealTypes = (["breakfast", "lunch", "dinner", "snack"] as MealType[]).filter(
+            (t) => plan.meals.some((m) => m.mealType === t)
+          );
+          if (activeMealTypes.length === 0) return null;
           return (
-            <div key={type} className="mb-4">
-              <div className="mb-2 flex items-center gap-2">
-                {icon}
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{label}</h2>
-              </div>
-              <div className="space-y-2">
-                {typeMeals.map((meal) => {
-                  const isCooked = cookedMeals.has(meal.id);
+            <Tabs defaultValue={activeMealTypes[0]} className="mb-6">
+              <TabsList className="w-full grid" style={{ gridTemplateColumns: `repeat(${activeMealTypes.length}, 1fr)` }}>
+                {activeMealTypes.map((type) => {
+                  const { label, icon } = typeLabels[type];
+                  const count = plan.meals.filter((m) => m.mealType === type).length;
                   return (
-                    <Card
-                      key={meal.id}
-                      className={`flex cursor-pointer items-center gap-3 p-4 transition-shadow hover:shadow-md active:scale-[0.99] ${isCooked ? "opacity-75 bg-savr-green-light/50" : ""}`}
-                      onClick={() => navigate(`/recipe/${meal.id}`, { state: formInputs })}
-                    >
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-semibold text-sm ${isCooked ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
-                        {isCooked ? <Check className="h-5 w-5" /> : meal.day}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`font-medium truncate ${isCooked ? "text-muted-foreground line-through" : "text-foreground"}`}>{meal.name}</p>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          {isCooked ? "Cooked ✓" : meal.duration}
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    </Card>
+                    <TabsTrigger key={type} value={type} className="flex items-center gap-1.5 text-xs sm:text-sm">
+                      {icon}
+                      {label}
+                      <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] px-1 text-[10px]">{count}</Badge>
+                    </TabsTrigger>
                   );
                 })}
-              </div>
-            </div>
+              </TabsList>
+              {activeMealTypes.map((type) => {
+                const typeMeals = plan.meals.filter((m) => m.mealType === type);
+                return (
+                  <TabsContent key={type} value={type} className="space-y-2 mt-3">
+                    {typeMeals.map((meal) => {
+                      const isCooked = cookedMeals.has(meal.id);
+                      return (
+                        <Card
+                          key={meal.id}
+                          className={`flex cursor-pointer items-center gap-3 p-4 transition-shadow hover:shadow-md active:scale-[0.99] ${isCooked ? "opacity-75 bg-savr-green-light/50" : ""}`}
+                          onClick={() => navigate(`/recipe/${meal.id}`, { state: formInputs })}
+                        >
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-semibold text-sm ${isCooked ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
+                            {isCooked ? <Check className="h-5 w-5" /> : meal.day}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-medium truncate ${isCooked ? "text-muted-foreground line-through" : "text-foreground"}`}>{meal.name}</p>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              {isCooked ? "Cooked ✓" : meal.duration}
+                            </div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        </Card>
+                      );
+                    })}
+                  </TabsContent>
+                );
+              })}
+            </Tabs>
           );
-        })}
+        })()}
 
         {/* Two-column lists */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
