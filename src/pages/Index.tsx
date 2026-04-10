@@ -21,7 +21,7 @@ const HAVE_STORAGE_KEY = "savr-have-items";
 const Index = () => {
   const navigate = useNavigate();
   const [budget, setBudget] = useState("");
-  const [mealCounts, setMealCounts] = useState({ breakfast: 0, lunch: 0, dinner: 5, snack: 0 });
+  const [mealCounts, setMealCounts] = useState({ breakfast: 0, lunch: 0, dinner: 0, snack: 0 });
   const [mealDays, setMealDays] = useState<Record<string, string[]>>({
     breakfast: [],
     lunch: [],
