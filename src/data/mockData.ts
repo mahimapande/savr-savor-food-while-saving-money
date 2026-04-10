@@ -1501,7 +1501,13 @@ export function generatePlan(inputs?: FormInputs): PlanData {
       ...recipe, ingredients, day: getDayForMeal(mt),
       mealType: mt,
       estimatedCost: `$${adjustedCost}`, reuseBadges: badges,
-      tags: dietaryTags.length > 0 ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), ...dietaryTags] : recipe.tags,
+      tags: dietaryTags.length > 0 ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), ...dietaryTags.filter((dt) => {
+        const recipeTags = recipe.tags.map((t) => t.toLowerCase());
+        if (dt.toLowerCase().startsWith("vegan")) return recipeTags.includes("vegan");
+        if (dt.toLowerCase().startsWith("vegetarian")) return recipeTags.includes("vegetarian") || recipeTags.includes("vegan");
+        if (dt.toLowerCase().startsWith("pescatarian")) return recipeTags.includes("pescatarian");
+        return true;
+      })] : recipe.tags,
       cooked: false,
     };
   });
