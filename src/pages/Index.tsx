@@ -137,6 +137,7 @@ const Index = () => {
       pantryItems: buildPantryItems(),
       preference,
       mealCounts,
+      mealDays: mealDays as FormInputs["mealDays"],
     };
 
     localStorage.clear();
