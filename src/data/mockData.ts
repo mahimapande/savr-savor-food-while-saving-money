@@ -1249,7 +1249,9 @@ function matchesDietMulti(recipe: RecipeWithCuisine, preferences: DietaryPrefere
   const hasTag = (tag: string) => recipe.tags.some((t) => t.toLowerCase() === tag.toLowerCase());
   // Recipe is valid if it matches ANY of the user's dietary preferences
   return preferences.some((pref) => {
-    if (pref === "pescatarian") return hasTag("Pescatarian");
+    if (pref === "pescatarian") {
+      return hasTag("Pescatarian") || hasTag("Vegetarian") || hasTag("Vegan");
+    }
     if (pref === "vegan") return hasTag("Vegan");
     if (pref === "vegetarian") return hasTag("Vegetarian") || hasTag("Vegan");
     return true;
