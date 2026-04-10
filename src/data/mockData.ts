@@ -64,6 +64,12 @@ export interface FormInputs {
     dinner: number;
     snack: number;
   };
+  mealDays?: {
+    breakfast: string[];
+    lunch: string[];
+    dinner: string[];
+    snack: string[];
+  };
 }
 
 // Recipe pool with realistic quantities and per-item costs
@@ -1463,7 +1469,21 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const typeOrder: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
   selected.sort((a, b) => typeOrder.indexOf(a.mealType || "dinner") - typeOrder.indexOf(b.mealType || "dinner"));
 
-  const meals: Meal[] = selected.map((recipe, i) => {
+  // Build per-type day assignments from user selections or default sequential
+  const userMealDays = inputs?.mealDays;
+  const typeDayCounters: Record<MealType, number> = { breakfast: 0, lunch: 0, dinner: 0, snack: 0 };
+
+  function getDayForMeal(mealType: MealType): string {
+    const idx = typeDayCounters[mealType];
+    typeDayCounters[mealType] = idx + 1;
+    if (userMealDays && userMealDays[mealType] && userMealDays[mealType].length > 0) {
+      return userMealDays[mealType][idx % userMealDays[mealType].length];
+    }
+    return DAYS[idx % DAYS.length];
+  }
+
+  const meals: Meal[] = selected.map((recipe) => {
+    const mt = recipe.mealType || "dinner" as MealType;
     const badges: string[] = [];
     const ingredients = recipe.ingredients.map((ing) => ({ ...ing, pantry: isUserPantryItem(ing.name) }));
     const pantryCount = ingredients.filter((ing) => ing.pantry).length;
@@ -1478,8 +1498,8 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     const adjustedCost = Math.max(2, baseCost * Math.min(1.5, Math.max(0.7, scaleFactor))).toFixed(2);
     badges.push(`Est. cost: ~$${adjustedCost}`);
     return {
-      ...recipe, ingredients, day: DAYS[i % DAYS.length],
-      mealType: recipe.mealType || "dinner" as MealType,
+      ...recipe, ingredients, day: getDayForMeal(mt),
+      mealType: mt,
       estimatedCost: `$${adjustedCost}`, reuseBadges: badges,
       tags: dietaryTags.length > 0 ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), ...dietaryTags] : recipe.tags,
       cooked: false,

@@ -22,6 +22,42 @@ const Index = () => {
   const navigate = useNavigate();
   const [budget, setBudget] = useState("");
   const [mealCounts, setMealCounts] = useState({ breakfast: 0, lunch: 0, dinner: 5, snack: 0 });
+  const [mealDays, setMealDays] = useState<Record<string, string[]>>({
+    breakfast: [],
+    lunch: [],
+    dinner: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    snack: [],
+  });
+  const ALL_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const toggleDay = (mealType: string, day: string) => {
+    setMealDays((prev) => {
+      const current = prev[mealType] || [];
+      const next = current.includes(day)
+        ? current.filter((d) => d !== day)
+        : [...current, day].sort((a, b) => ALL_DAYS.indexOf(a) - ALL_DAYS.indexOf(b));
+      return { ...prev, [mealType]: next };
+    });
+  };
+
+  // Sync meal count with selected days
+  const updateMealCount = (key: string, newCount: number) => {
+    setMealCounts((prev) => ({ ...prev, [key]: newCount }));
+    // Auto-select/deselect days to match count
+    setMealDays((prev) => {
+      const current = prev[key] || [];
+      if (newCount > current.length) {
+        // Add days from start of week that aren't selected yet
+        const available = ALL_DAYS.filter((d) => !current.includes(d));
+        const toAdd = available.slice(0, newCount - current.length);
+        return { ...prev, [key]: [...current, ...toAdd].sort((a, b) => ALL_DAYS.indexOf(a) - ALL_DAYS.indexOf(b)) };
+      } else if (newCount < current.length) {
+        // Remove days from the end
+        return { ...prev, [key]: current.slice(0, newCount) };
+      }
+      return prev;
+    });
+  };
   const [dietary, setDietary] = useState<string[]>([]);
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [customCuisine, setCustomCuisine] = useState("");
