@@ -4,6 +4,7 @@ import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem, M
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight, Package, ArrowRight, ArrowLeft, PiggyBank, Check, Sun, Coffee, UtensilsCrossed, Cookie } from "lucide-react";
 
 const HAVE_STORAGE_KEY = "savr-have-items";
