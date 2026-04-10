@@ -22,6 +22,42 @@ const Index = () => {
   const navigate = useNavigate();
   const [budget, setBudget] = useState("");
   const [mealCounts, setMealCounts] = useState({ breakfast: 0, lunch: 0, dinner: 5, snack: 0 });
+  const [mealDays, setMealDays] = useState<Record<string, string[]>>({
+    breakfast: [],
+    lunch: [],
+    dinner: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    snack: [],
+  });
+  const ALL_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const toggleDay = (mealType: string, day: string) => {
+    setMealDays((prev) => {
+      const current = prev[mealType] || [];
+      const next = current.includes(day)
+        ? current.filter((d) => d !== day)
+        : [...current, day].sort((a, b) => ALL_DAYS.indexOf(a) - ALL_DAYS.indexOf(b));
+      return { ...prev, [mealType]: next };
+    });
+  };
+
+  // Sync meal count with selected days
+  const updateMealCount = (key: string, newCount: number) => {
+    setMealCounts((prev) => ({ ...prev, [key]: newCount }));
+    // Auto-select/deselect days to match count
+    setMealDays((prev) => {
+      const current = prev[key] || [];
+      if (newCount > current.length) {
+        // Add days from start of week that aren't selected yet
+        const available = ALL_DAYS.filter((d) => !current.includes(d));
+        const toAdd = available.slice(0, newCount - current.length);
+        return { ...prev, [key]: [...current, ...toAdd].sort((a, b) => ALL_DAYS.indexOf(a) - ALL_DAYS.indexOf(b)) };
+      } else if (newCount < current.length) {
+        // Remove days from the end
+        return { ...prev, [key]: current.slice(0, newCount) };
+      }
+      return prev;
+    });
+  };
   const [dietary, setDietary] = useState<string[]>([]);
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [customCuisine, setCustomCuisine] = useState("");
@@ -101,6 +137,7 @@ const Index = () => {
       pantryItems: buildPantryItems(),
       preference,
       mealCounts,
+      mealDays: mealDays as FormInputs["mealDays"],
     };
 
     localStorage.clear();
@@ -143,41 +180,68 @@ const Index = () => {
             />
           </div>
 
-          {/* Meal Counts */}
+          {/* Meal Counts & Days */}
           <div className="space-y-3">
             <Label>Meals per week</Label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
               {([
                 { key: "breakfast" as const, label: "Breakfasts" },
                 { key: "lunch" as const, label: "Lunches" },
                 { key: "dinner" as const, label: "Dinners" },
                 { key: "snack" as const, label: "Snacks" },
               ]).map(({ key, label }) => (
-                <div key={key} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                  <span className="text-sm text-foreground">{label}</span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => setMealCounts((prev) => ({ ...prev, [key]: Math.max(0, prev[key] - 1) }))}
-                      disabled={mealCounts[key] === 0}
-                    >
-                      −
-                    </Button>
-                    <span className="w-5 text-center text-sm font-medium">{mealCounts[key]}</span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => setMealCounts((prev) => ({ ...prev, [key]: Math.min(7, prev[key] + 1) }))}
-                      disabled={mealCounts[key] === 7}
-                    >
-                      +
-                    </Button>
+                <div key={key} className="rounded-lg border border-border px-3 py-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground">{label}</span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => updateMealCount(key, Math.max(0, mealCounts[key] - 1))}
+                        disabled={mealCounts[key] === 0}
+                      >
+                        −
+                      </Button>
+                      <span className="w-5 text-center text-sm font-medium">{mealCounts[key]}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => updateMealCount(key, Math.min(7, mealCounts[key] + 1))}
+                        disabled={mealCounts[key] === 7}
+                      >
+                        +
+                      </Button>
+                    </div>
                   </div>
+                  {mealCounts[key] > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {ALL_DAYS.map((day) => (
+                        <Badge
+                          key={day}
+                          variant={(mealDays[key] || []).includes(day) ? "default" : "outline"}
+                          className="cursor-pointer select-none px-2 py-0.5 text-xs transition-colors"
+                          onClick={() => {
+                            const current = mealDays[key] || [];
+                            if (current.includes(day)) {
+                              // Deselect day and reduce count
+                              toggleDay(key, day);
+                              setMealCounts((prev) => ({ ...prev, [key]: Math.max(0, prev[key] - 1) }));
+                            } else if (current.length < 7) {
+                              // Select day and increase count
+                              toggleDay(key, day);
+                              setMealCounts((prev) => ({ ...prev, [key]: Math.min(7, prev[key] + 1) }));
+                            }
+                          }}
+                        >
+                          {day}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
