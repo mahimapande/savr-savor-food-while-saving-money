@@ -1250,6 +1250,29 @@ function matchesDietMulti(recipe: RecipeWithCuisine, preferences: DietaryPrefere
   });
 }
 
+const VARIATION_SWAPS: Record<string, { name: string; ingredients: { name: string; cost: number }[]; steps: string[] }[]> = {
+  "trail-mix": [
+    { name: "Tropical Trail Mix", ingredients: [{ name: "1 cup cashews", cost: 1.40 }, { name: "1/2 cup dried mango", cost: 0.90 }, { name: "1/2 cup coconut flakes", cost: 0.50 }, { name: "1/4 cup macadamia nuts", cost: 0.80 }], steps: ["Combine all ingredients in a bowl", "Toss gently and portion into bags", "Store in a cool dry place"] },
+    { name: "Savory Spiced Trail Mix", ingredients: [{ name: "1 cup mixed nuts", cost: 1.30 }, { name: "1/2 cup pretzels", cost: 0.40 }, { name: "2 tbsp olive oil", cost: 0.30 }, { name: "1 tsp smoked paprika", cost: 0.10 }], steps: ["Toss nuts and pretzels with olive oil and paprika", "Spread on a baking sheet, bake 10 min at 350°F", "Cool and store in airtight container"] },
+  ],
+  "veggie-sticks-hummus": [
+    { name: "Veggie Sticks & Guacamole", ingredients: [{ name: "2 medium carrots", cost: 0.60 }, { name: "1 celery stalk", cost: 0.30 }, { name: "1 ripe avocado", cost: 1.00 }, { name: "1 tbsp lime juice", cost: 0.15 }], steps: ["Mash avocado with lime juice and a pinch of salt", "Slice veggies into sticks", "Serve with guacamole for dipping"] },
+    { name: "Cucumber Rounds & Tzatziki", ingredients: [{ name: "1 large cucumber", cost: 0.60 }, { name: "1/2 cup Greek yogurt", cost: 0.80 }, { name: "1 tbsp fresh dill", cost: 0.30 }, { name: "1 tsp lemon juice", cost: 0.10 }], steps: ["Mix yogurt with dill and lemon juice", "Slice cucumber into thick rounds", "Top each round with a dollop of tzatziki"] },
+  ],
+  "energy-bites": [
+    { name: "Coconut Date Bites", ingredients: [{ name: "1 cup pitted dates", cost: 1.20 }, { name: "1/2 cup shredded coconut", cost: 0.50 }, { name: "1/4 cup almonds", cost: 0.40 }, { name: "1 tbsp cocoa powder", cost: 0.20 }], steps: ["Blend dates and almonds in a food processor", "Mix in coconut and cocoa powder", "Roll into balls and refrigerate 30 min"] },
+    { name: "Sesame Oat Bites", ingredients: [{ name: "1 cup rolled oats", cost: 0.30 }, { name: "3 tbsp sesame seeds", cost: 0.40 }, { name: "2 tbsp maple syrup", cost: 0.50 }, { name: "2 tbsp tahini", cost: 0.40 }], steps: ["Toast sesame seeds in a dry pan 2 min", "Mix all ingredients in a bowl", "Form into balls and chill 1 hour"] },
+  ],
+  "fruit-and-cheese": [
+    { name: "Pear & Brie Plate", ingredients: [{ name: "1 ripe pear", cost: 0.85 }, { name: "3 oz brie cheese", cost: 1.80 }, { name: "2 tbsp walnuts", cost: 0.40 }, { name: "1 tbsp honey", cost: 0.25 }], steps: ["Slice pear and arrange on plate", "Add brie wedges and walnuts", "Drizzle with honey and serve"] },
+    { name: "Grapes & Gouda Plate", ingredients: [{ name: "1 cup red grapes", cost: 0.90 }, { name: "3 oz gouda cheese", cost: 1.60 }, { name: "1/4 cup pecans", cost: 0.50 }, { name: "2 whole wheat crackers", cost: 0.30 }], steps: ["Arrange grapes, cheese cubes, and pecans on a plate", "Add crackers on the side", "Serve immediately"] },
+  ],
+  "banana-bites": [
+    { name: "Strawberry Yogurt Bites", ingredients: [{ name: "1 cup strawberries", cost: 0.80 }, { name: "1/2 cup Greek yogurt", cost: 0.60 }, { name: "1 tbsp honey", cost: 0.20 }], steps: ["Dip each strawberry in yogurt", "Place on parchment-lined tray", "Drizzle with honey and freeze 1 hour"] },
+    { name: "Apple Almond Butter Rounds", ingredients: [{ name: "1 large apple", cost: 0.75 }, { name: "2 tbsp almond butter", cost: 0.60 }, { name: "1 tbsp granola", cost: 0.20 }], steps: ["Slice apple into thick rounds", "Spread almond butter on each round", "Sprinkle with granola and serve"] },
+  ],
+};
+
 function ensureMealCount<T extends RecipeWithCuisine>(recipes: T[], count: number): T[] {
   if (recipes.length >= count) return recipes.slice(0, count);
   if (recipes.length === 0) return [];
@@ -1259,11 +1282,25 @@ function ensureMealCount<T extends RecipeWithCuisine>(recipes: T[], count: numbe
   while (completed.length < count) {
     const base = recipes[i % recipes.length];
     const variantNumber = Math.floor(i / recipes.length) + 2;
-    completed.push({
-      ...base,
-      id: `${base.id}-v${variantNumber}`,
-      name: `${base.name} (Variation ${variantNumber})`,
-    });
+    const swaps = VARIATION_SWAPS[base.id];
+    const swapIdx = variantNumber - 2;
+    if (swaps && swapIdx < swaps.length) {
+      const swap = swaps[swapIdx];
+      completed.push({
+        ...base,
+        id: `${base.id}-v${variantNumber}`,
+        name: swap.name,
+        ingredients: swap.ingredients,
+        steps: swap.steps,
+        estimatedCost: `$${swap.ingredients.reduce((s, ing) => s + ing.cost, 0).toFixed(2)}`,
+      } as T);
+    } else {
+      completed.push({
+        ...base,
+        id: `${base.id}-v${variantNumber}`,
+        name: `${base.name} (Variation ${variantNumber})`,
+      } as T);
+    }
     i += 1;
   }
   return completed;
