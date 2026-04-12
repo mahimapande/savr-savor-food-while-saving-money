@@ -41,6 +41,9 @@ export interface PlanData {
 export interface ShoppingListItem {
   name: string;
   cost: number;
+  costMin: number;
+  costMax: number;
+  costLikely: number;
 }
 
 export interface ShoppingList {
@@ -1523,7 +1526,13 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const pantryMatchers = pantryMatchersEarly;
   const pantryCostAccumulator = new Map<string, number>(userPantryListEarly.map((item) => [item, 0]));
   const lists: Record<string, ShoppingListItem[]> = { produce: [], dairy: [], plantBased: [], dryGoods: [], spicesCondiments: [] };
-  const allIngredients: ShoppingListItem[] = meals.flatMap((meal) => meal.ingredients.map((ing) => ({ name: ing.name, cost: ing.cost })));
+
+  function toShoppingItem(name: string, cost: number): ShoppingListItem {
+    const c = cost || 0;
+    return { name, cost: c, costMin: Math.floor(c * 0.9 * 100) / 100, costMax: Math.ceil(c * 1.1 * 100) / 100, costLikely: Math.round(c * 100) / 100 };
+  }
+
+  const allIngredients = meals.flatMap((meal) => meal.ingredients.map((ing) => ({ name: ing.name, cost: ing.cost })));
 
   for (const ing of allIngredients) {
     const matchedPantry = pantryMatchers.find(({ baseName }) => {
@@ -1534,10 +1543,10 @@ export function generatePlan(inputs?: FormInputs): PlanData {
       pantryCostAccumulator.set(matchedPantry.raw, (pantryCostAccumulator.get(matchedPantry.raw) || 0) + ing.cost);
       continue;
     }
-    lists[categorizeItem(ing.name)].push({ name: ing.name, cost: ing.cost });
+    lists[categorizeItem(ing.name)].push(toShoppingItem(ing.name, ing.cost));
   }
 
-  const pantryItemsList: ShoppingListItem[] = userPantryListEarly.map((name) => ({ name, cost: pantryCostAccumulator.get(name) || 0 }));
+  const pantryItemsList: ShoppingListItem[] = userPantryListEarly.map((name) => toShoppingItem(name, pantryCostAccumulator.get(name) || 0));
   const allShoppingItems = [...lists.produce, ...lists.dairy, ...lists.plantBased, ...lists.dryGoods, ...lists.spicesCondiments];
   const totalCost = allShoppingItems.reduce((sum, item) => sum + item.cost, 0);
   const lowCost = Math.floor(totalCost * 0.9);

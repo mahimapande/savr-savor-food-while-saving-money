@@ -210,19 +210,26 @@ const Plan = () => {
   const shoppingSections = useMemo(() => buildSections(shoppingItems), [shoppingItems]);
   const pantrySections = useMemo(() => buildSections(pantryListItems), [pantryListItems]);
 
-  const shoppingCost = useMemo(
-    () => shoppingItems.reduce((sum, item) => sum + item.cost, 0),
+  const spendLow = useMemo(
+    () => Math.floor(shoppingItems.reduce((sum, item) => sum + (item.costMin ?? item.cost * 0.9), 0)),
     [shoppingItems]
   );
+  const spendHigh = useMemo(
+    () => Math.ceil(shoppingItems.reduce((sum, item) => sum + (item.costMax ?? item.cost * 1.1), 0)),
+    [shoppingItems]
+  );
+  const spendLikely = useMemo(
+    () => Math.round(shoppingItems.reduce((sum, item) => sum + (item.costLikely ?? item.cost), 0)),
+    [shoppingItems]
+  );
+  const shoppingCost = spendLikely; // for pantry savings display
   const pantrySavings = useMemo(
-    () => pantryListItems.reduce((sum, item) => sum + item.cost, 0),
+    () => pantryListItems.reduce((sum, item) => sum + (item.costLikely ?? item.cost), 0),
     [pantryListItems]
   );
 
   // Budget left calculation
   const budget = plan.metrics.budget || 60;
-  const spendLow = Math.floor(shoppingCost * 0.9);
-  const spendHigh = Math.ceil(shoppingCost * 1.1);
   const budgetLeftMin = budget - spendHigh;
   const budgetLeftMax = budget - spendLow;
 
@@ -372,9 +379,18 @@ const Plan = () => {
               <h2 className="font-semibold text-foreground">
                 Shopping list ({shoppingItems.length})
               </h2>
-              <Badge variant="secondary" className="ml-auto bg-accent/10 text-accent border-0">
-                Est. ${Math.round(shoppingCost)}
-              </Badge>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="secondary" className="ml-auto bg-accent/10 text-accent border-0 cursor-help">
+                      Likely total: ${spendLikely}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">Midpoint estimate. Full range: ${spendLow}–${spendHigh}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <div className="overflow-y-auto flex-1 -mr-2 pr-2">
               {shoppingSections.map((section) => {
