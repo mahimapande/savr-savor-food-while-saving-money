@@ -30,6 +30,8 @@ export interface PlanData {
     costLow: number;
     costHigh: number;
     reuseScore: string;
+    budget: number;
+    ingredientReusePercent: number;
   };
   meals: Meal[];
   shoppingList: ShoppingList;
@@ -1442,6 +1444,10 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   }
 
   const shared = findSharedIngredients(selected);
+  const totalDistinct = shared.size;
+  const sharedDistinct = [...shared.values()].filter((count) => count >= 2).length;
+  const ingredientReusePercent = totalDistinct > 0 ? Math.round((sharedDistinct / totalDistinct) * 100) : 0;
+  // Legacy reusePercent for backward compat
   const reuseEntries = [...shared.entries()].filter(([, count]) => count >= 2);
   const totalIngredients = selected.reduce((sum, m) => sum + m.ingredients.length, 0);
   const reusedIngredients = reuseEntries.reduce((sum, [, count]) => sum + count, 0);
@@ -1542,6 +1548,8 @@ export function generatePlan(inputs?: FormInputs): PlanData {
       totalMeals, mealCounts: { breakfast: breakfastCount, lunch: lunchCount, dinner: dinnerCount, snack: snackCount },
       costRange: `$${lowCost}–$${highCost}`, costLow: lowCost, costHigh: highCost,
       reuseScore: `${reusePercent}% of ingredients used in 2+ meals`,
+      budget: budgetNum,
+      ingredientReusePercent,
     },
     meals,
     shoppingList: {

@@ -5,7 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ChefHat, DollarSign, Recycle, ShoppingCart, Clock, ChevronRight, Package, ArrowRight, ArrowLeft, PiggyBank, Check, Sun, Coffee, UtensilsCrossed, Cookie } from "lucide-react";
+import { ChefHat, DollarSign, ShoppingCart, Clock, ChevronRight, Package, ArrowRight, ArrowLeft, PiggyBank, Check, Sun, Coffee, UtensilsCrossed, Cookie, Wallet, RefreshCw, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const HAVE_STORAGE_KEY = "savr-have-items";
 const WEEKLY_PLAN_KEY = "weeklyPlan";
@@ -218,12 +219,32 @@ const Plan = () => {
     [pantryListItems]
   );
 
-  // Update metrics cost based on current shopping list
-  const dynamicCostRange = useMemo(() => {
-    const low = Math.floor(shoppingCost * 0.9);
-    const high = Math.ceil(shoppingCost * 1.1);
-    return `$${low}–$${high}`;
-  }, [shoppingCost]);
+  // Budget left calculation
+  const budget = plan.metrics.budget || 60;
+  const spendLow = Math.floor(shoppingCost * 0.9);
+  const spendHigh = Math.ceil(shoppingCost * 1.1);
+  const budgetLeftMin = budget - spendHigh;
+  const budgetLeftMax = budget - spendLow;
+
+  // Dynamic cost range
+  const dynamicCostRange = `$${spendLow}–$${spendHigh}`;
+
+  // Budget left display
+  const isOverBudget = budgetLeftMax < 0;
+  const budgetLeftDisplay = useMemo(() => {
+    if (budgetLeftMin === budgetLeftMax) {
+      return isOverBudget ? `$${Math.abs(budgetLeftMin)}` : `$${budgetLeftMin}`;
+    }
+    if (isOverBudget) {
+      return `$${Math.abs(budgetLeftMax)}–$${Math.abs(budgetLeftMin)}`;
+    }
+    if (budgetLeftMin < 0) {
+      return `$0–$${budgetLeftMax}`;
+    }
+    return `$${budgetLeftMin}–$${budgetLeftMax}`;
+  }, [budgetLeftMin, budgetLeftMax, isOverBudget]);
+
+  const ingredientReuse = plan.metrics.ingredientReusePercent ?? 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -232,22 +253,44 @@ const Plan = () => {
         <p className="mb-5 text-sm text-muted-foreground">Personalized meal plan</p>
 
         {/* Metrics */}
-        <div className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <Card className="flex flex-row sm:flex-col items-center gap-2 sm:gap-1 p-3 sm:text-center bg-savr-green-light border-0">
+        <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Card className="flex flex-col items-center gap-1 p-3 text-center bg-savr-green-light border-0">
             <ChefHat className="h-5 w-5 text-primary" />
-            <span className="text-lg font-semibold text-foreground">{plan.metrics.totalMeals}</span>
+            <span className="text-lg font-semibold text-foreground">{plan.metrics.totalMeals || "—"}</span>
             <span className="text-xs text-muted-foreground">meals planned</span>
           </Card>
-          <Card className="flex flex-row sm:flex-col items-center gap-2 sm:gap-1 p-3 sm:text-center bg-savr-orange-light border-0">
+          <Card className="flex flex-col items-center gap-1 p-3 text-center bg-savr-orange-light border-0">
             <DollarSign className="h-5 w-5 text-accent" />
-            <span className="text-lg font-semibold text-foreground">{dynamicCostRange}</span>
-            <span className="text-xs text-muted-foreground">estimated</span>
+            <span className="text-lg font-semibold text-foreground">{shoppingCost > 0 ? dynamicCostRange : "—"}</span>
+            <span className="text-xs text-muted-foreground">estimated spend</span>
           </Card>
-          <Card className="flex flex-row sm:flex-col items-center gap-2 sm:gap-1 p-3 sm:text-center bg-savr-badge border-0">
-            <Recycle className="h-5 w-5 text-primary" />
-            <span className="text-lg font-semibold text-foreground">{plan.metrics.reuseScore.split("%")[0]}%</span>
-            <span className="text-xs text-muted-foreground">reuse score</span>
+          <Card className={`flex flex-col items-center gap-1 p-3 text-center border-0 ${isOverBudget ? "bg-destructive/10" : "bg-savr-green-light"}`}>
+            {isOverBudget ? (
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            ) : (
+              <Wallet className="h-5 w-5 text-primary" />
+            )}
+            <span className={`text-lg font-semibold ${isOverBudget ? "text-destructive" : "text-foreground"}`}>
+              {shoppingCost > 0 ? budgetLeftDisplay : "—"}
+            </span>
+            <span className={`text-xs ${isOverBudget ? "text-destructive/80" : "text-muted-foreground"}`}>
+              {isOverBudget ? "over budget" : "budget left"}
+            </span>
           </Card>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card className="flex flex-col items-center gap-1 p-3 text-center bg-savr-badge border-0 cursor-help">
+                  <RefreshCw className="h-5 w-5 text-primary" />
+                  <span className="text-lg font-semibold text-foreground">{ingredientReuse}%</span>
+                  <span className="text-xs text-muted-foreground">ingredient reuse</span>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Percent of ingredients used in more than one meal.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Savings callout */}
