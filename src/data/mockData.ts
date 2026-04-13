@@ -1410,7 +1410,7 @@ function findSharedIngredients(meals: RecipeWithCuisine[]): Map<string, number> 
   for (const meal of meals) {
     const seen = new Set<string>();
     for (const ing of meal.ingredients) {
-      const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
+      const key = parseIngredient(ing.name).baseName;
       if (!seen.has(key)) {
         seen.add(key);
         ingredientCount.set(key, (ingredientCount.get(key) || 0) + 1);
