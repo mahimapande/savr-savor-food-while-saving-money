@@ -266,12 +266,12 @@ function convertQty(qty: number, fromUnit: string, toUnit: string): number | nul
 // Ingredient string parser
 // ---------------------------------------------------------------------------
 
-// Matches patterns like: "1 can", "2.5 cups", "1/2 cup", "1/4 cup", "12 oz"
+// Matches patterns like: "1 can", "2.5 cups", "1/2 cup", "1 1/2 cups", "12 oz"
 const QTY_UNIT_RE =
-  /^([\d]+(?:[./][\d]+)?)\s*(cups?|cans?|tbsps?|tsps?|oz|lbs?|bunch(?:es)?|cloves?|blocks?|large|small|medium|slices?|sheets?|inch|fillets?|stalks?)\b\s*/i;
+  /^([\d]+(?:[./][\d]+)?(?:\s+[\d]+\/[\d]+)?)\s*(cups?|cans?|tbsps?|tsps?|oz|lbs?|bunch(?:es)?|cloves?|blocks?|large|small|medium|slices?|sheets?|inch|fillets?|stalks?)\b\s*/i;
 
-// Matches just a leading number with no unit
-const QTY_ONLY_RE = /^([\d]+(?:[./][\d]+)?)\s+/;
+// Matches just a leading number with no unit (including mixed numbers like "1 1/2")
+const QTY_ONLY_RE = /^([\d]+(?:[./][\d]+)?(?:\s+[\d]+\/[\d]+)?)\s+/;
 
 // Words to strip from the base name for normalization
 const STRIP_WORDS =
@@ -281,11 +281,18 @@ const PARENTHETICAL = /\s*\(.*?\)\s*/g;
 const TRAILING_COMMA = /,.*$/;
 
 function parseFraction(s: string): number {
-  if (s.includes("/")) {
-    const [num, den] = s.split("/").map(Number);
-    return den ? num / den : Number(s);
+  const trimmed = s.trim();
+  // Mixed number: "1 1/2" → 1.5
+  const mixedMatch = trimmed.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixedMatch) {
+    return Number(mixedMatch[1]) + Number(mixedMatch[2]) / Number(mixedMatch[3]);
   }
-  return Number(s);
+  // Simple fraction: "1/2"
+  if (trimmed.includes("/")) {
+    const [num, den] = trimmed.split("/").map(Number);
+    return den ? num / den : Number(trimmed);
+  }
+  return Number(trimmed);
 }
 
 export function parseIngredient(raw: string): ParsedIngredient {
@@ -350,7 +357,10 @@ export function computeIngredientCost(ingredientName: string): number {
 
   if (!entry) {
     // Try finding a key that the baseName contains or that contains baseName
-    for (const [key, val] of Object.entries(INGREDIENT_PRICE_MAP)) {
+    // Sort by key length descending so longer, more specific names match first
+    const sortedEntries = Object.entries(INGREDIENT_PRICE_MAP)
+      .sort((a, b) => b[0].length - a[0].length);
+    for (const [key, val] of sortedEntries) {
       if (baseName.includes(key) || key.includes(baseName)) {
         entry = val;
         break;

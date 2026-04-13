@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem, MealType } from "@/data/mockData";
+import { parseIngredient as sharedParseIngredient } from "@/data/priceMap";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,9 +13,6 @@ const HAVE_STORAGE_KEY = "savr-have-items";
 const WEEKLY_PLAN_KEY = "weeklyPlan";
 const COOKED_MEALS_KEY = "savr-cooked-meals";
 
-// Parse "3 tbsp olive oil" → { qty: 3, unit: "tbsp", base: "olive oil" }
-const QTY_UNIT_RE = /^(\d+(?:\/\d+)?(?:\.\d+)?)\s*(cups?|cans?|tbsp|tsp|oz|bunch(?:es)?|cloves?|large|small|medium|inch|blocks?|slices?|lbs?)\b\s*/i;
-
 interface ParsedItem {
   qty: number;
   unit: string;
@@ -23,22 +21,15 @@ interface ParsedItem {
   cost: number;
 }
 
-function parseIngredient(item: ShoppingListItem): ParsedItem {
-  const match = item.name.match(QTY_UNIT_RE);
-  if (match) {
-    let qty = 0;
-    const raw = match[1];
-    if (raw.includes("/")) {
-      const [num, den] = raw.split("/");
-      qty = parseInt(num) / parseInt(den);
-    } else {
-      qty = parseFloat(raw);
-    }
-    const unit = match[2].toLowerCase().replace(/s$/, "");
-    const base = item.name.slice(match[0].length).replace(/^\s*,?\s*/, "").trim();
-    return { qty, unit, base: base.toLowerCase(), originalName: item.name, cost: item.cost };
-  }
-  return { qty: 1, unit: "", base: item.name.toLowerCase(), originalName: item.name, cost: item.cost };
+function parseShoppingItem(item: ShoppingListItem): ParsedItem {
+  const parsed = sharedParseIngredient(item.name);
+  return {
+    qty: parsed.qty,
+    unit: parsed.unit === "each" ? "" : parsed.unit,
+    base: parsed.baseName,
+    originalName: item.name,
+    cost: item.cost,
+  };
 }
 
 interface ConsolidatedItem {
@@ -51,7 +42,7 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
   const groups = new Map<string, { qty: number; unit: string; base: string; cost: number; originalNames: string[] }>();
 
   for (const item of items) {
-    const parsed = parseIngredient(item);
+    const parsed = parseShoppingItem(item);
     const key = `${parsed.base}||${parsed.unit}`;
     const existing = groups.get(key);
     if (existing && parsed.unit !== "") {
