@@ -109,6 +109,78 @@ export interface FormInputs {
 }
 
 // ---------------------------------------------------------------------------
+// Validation & sanitization – ensures downstream consumers get safe data
+// ---------------------------------------------------------------------------
+
+/** Sanitize an Ingredient, filling in missing structured fields with safe fallbacks */
+export function sanitizeIngredient(ing: Partial<Ingredient> & { name: string }): Ingredient {
+  const name = (ing.name || "unknown ingredient").trim();
+  const parsed = parseIngredient(name);
+  const cost = typeof ing.cost === "number" && isFinite(ing.cost) ? ing.cost : computeIngredientCost(name);
+
+  return {
+    name,
+    normalizedName: ing.normalizedName || parsed.baseName,
+    qty: typeof ing.qty === "number" && isFinite(ing.qty) && ing.qty > 0 ? ing.qty : parsed.qty,
+    unit: ing.unit || parsed.unit,
+    originalQtyString: ing.originalQtyString || `${parsed.qty} ${parsed.unit}`,
+    source: ing.source === "pantry" || ing.source === "grocery" ? ing.source : "grocery",
+    note: ing.note,
+    cost,
+    pantry: ing.source === "pantry" || ing.pantry || false,
+  };
+}
+
+/** Sanitize a ShoppingListItem, deriving min/max/likely from cost if missing */
+export function sanitizeShoppingItem(item: Partial<ShoppingListItem> & { name: string }): ShoppingListItem {
+  const name = (item.name || "unknown item").trim();
+  const parsed = parseIngredient(name);
+  const cost = typeof item.cost === "number" && isFinite(item.cost) ? item.cost : computeIngredientCost(name);
+
+  return {
+    name,
+    normalizedName: item.normalizedName || parsed.baseName,
+    qty: typeof item.qty === "number" && isFinite(item.qty) && item.qty > 0 ? item.qty : parsed.qty,
+    unit: item.unit || parsed.unit,
+    cost,
+    costMin: typeof item.costMin === "number" && isFinite(item.costMin) ? item.costMin : Math.floor(cost * 0.9 * 100) / 100,
+    costMax: typeof item.costMax === "number" && isFinite(item.costMax) ? item.costMax : Math.ceil(cost * 1.1 * 100) / 100,
+    costLikely: typeof item.costLikely === "number" && isFinite(item.costLikely) ? item.costLikely : Math.round(cost * 100) / 100,
+  };
+}
+
+/** Validate a full PlanData, sanitizing all nested items */
+export function validatePlanData(plan: PlanData): PlanData {
+  const meals = plan.meals.map((meal) => ({
+    ...meal,
+    prepTimeMinutes: typeof meal.prepTimeMinutes === "number" ? meal.prepTimeMinutes : parseDurationMinutes(meal.duration || "0"),
+    cuisineTags: Array.isArray(meal.cuisineTags) ? meal.cuisineTags : [],
+    dietaryTags: Array.isArray(meal.dietaryTags) ? meal.dietaryTags : [],
+    instructions: Array.isArray(meal.instructions) && meal.instructions.length > 0 ? meal.instructions : meal.steps || [],
+    steps: Array.isArray(meal.steps) && meal.steps.length > 0 ? meal.steps : meal.instructions || [],
+    ingredients: meal.ingredients.map((ing) => sanitizeIngredient(ing)),
+  }));
+
+  const sanitizeList = (items: ShoppingListItem[]) =>
+    (items || []).map((item) => sanitizeShoppingItem(item));
+
+  return {
+    ...plan,
+    meals,
+    shoppingList: {
+      produce: sanitizeList(plan.shoppingList.produce),
+      dairy: sanitizeList(plan.shoppingList.dairy),
+      plantBased: sanitizeList(plan.shoppingList.plantBased),
+      dryGoods: sanitizeList(plan.shoppingList.dryGoods),
+      spicesCondiments: sanitizeList(plan.shoppingList.spicesCondiments),
+      totalItems: plan.shoppingList.totalItems,
+      estimatedCost: plan.shoppingList.estimatedCost,
+    },
+    pantryItems: sanitizeList(plan.pantryItems),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Structured ingredient builder – gracefully handles imperfect input
 // ---------------------------------------------------------------------------
 
@@ -116,22 +188,12 @@ export function buildStructuredIngredient(
   rawName: string,
   opts: { isPantry?: boolean; note?: string } = {},
 ): Ingredient {
-  const parsed = parseIngredient(rawName);
-  // Build the original qty string (everything before the base name)
-  const baseIdx = rawName.toLowerCase().indexOf(parsed.baseName.charAt(0));
-  const originalQtyString = baseIdx > 0 ? rawName.slice(0, baseIdx).trim() : `${parsed.qty} ${parsed.unit}`;
-
-  return {
+  return sanitizeIngredient({
     name: rawName,
-    normalizedName: parsed.baseName,
-    qty: parsed.qty,
-    unit: parsed.unit,
-    originalQtyString,
     source: opts.isPantry ? "pantry" : "grocery",
     note: opts.note,
     cost: computeIngredientCost(rawName),
-    pantry: opts.isPantry || false,
-  };
+  });
 }
 
 function parseDurationMinutes(duration: string): number {
