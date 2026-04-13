@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem, MealType } from "@/data/mockData";
-import { parseIngredient as sharedParseIngredient } from "@/data/priceMap";
+
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
