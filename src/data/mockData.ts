@@ -1499,7 +1499,11 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const meals: Meal[] = selected.map((recipe) => {
     const mt = recipe.mealType || "dinner" as MealType;
     const badges: string[] = [];
-    const ingredients = recipe.ingredients.map((ing) => ({ ...ing, pantry: isUserPantryItem(ing.name) }));
+    const ingredients = recipe.ingredients.map((ing) => ({
+      ...ing,
+      cost: computeIngredientCost(ing.name),  // computed from centralized price map
+      pantry: isUserPantryItem(ing.name),
+    }));
     const pantryCount = ingredients.filter((ing) => ing.pantry).length;
     if (pantryCount > 0) badges.push(`Uses ${pantryCount} pantry item${pantryCount > 1 ? "s" : ""}`);
     for (const ing of ingredients) {
@@ -1507,9 +1511,8 @@ export function generatePlan(inputs?: FormInputs): PlanData {
       const count = shared.get(key) || 0;
       if (count >= 2) { badges.push(`${key} used in ${count} meals`); break; }
     }
-    const scaleFactor = perMealBudget / 5;
     const baseCost = ingredients.reduce((sum, ing) => sum + ing.cost, 0);
-    const adjustedCost = Math.max(2, baseCost * Math.min(1.5, Math.max(0.7, scaleFactor))).toFixed(2);
+    const adjustedCost = Math.max(2, baseCost).toFixed(2);
     badges.push(`Est. cost: ~$${adjustedCost}`);
     return {
       ...recipe, ingredients, day: getDayForMeal(mt),
