@@ -65,6 +65,12 @@ export interface PlanData {
 
 export interface ShoppingListItem {
   name: string;
+  /** Normalized base ingredient name from shared parser */
+  normalizedName: string;
+  /** Parsed quantity */
+  qty: number;
+  /** Parsed unit */
+  unit: string;
   cost: number;
   costMin: number;
   costMax: number;
@@ -1613,39 +1619,57 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     };
   });
 
-  const pantryMatchers = pantryMatchersEarly;
   const pantryCostAccumulator = new Map<string, number>(userPantryListEarly.map((item) => [item, 0]));
   const lists: Record<string, ShoppingListItem[]> = { produce: [], dairy: [], plantBased: [], dryGoods: [], spicesCondiments: [] };
 
-  function toShoppingItem(name: string, cost: number): ShoppingListItem {
-    const c = cost || 0;
-    return { name, cost: c, costMin: Math.floor(c * 0.9 * 100) / 100, costMax: Math.ceil(c * 1.1 * 100) / 100, costLikely: Math.round(c * 100) / 100 };
+  function toShoppingItem(ing: { name: string; normalizedName: string; qty: number; unit: string; cost: number }): ShoppingListItem {
+    const c = ing.cost || 0;
+    return {
+      name: ing.name,
+      normalizedName: ing.normalizedName,
+      qty: ing.qty,
+      unit: ing.unit,
+      cost: c,
+      costMin: Math.floor(c * 0.9 * 100) / 100,
+      costMax: Math.ceil(c * 1.1 * 100) / 100,
+      costLikely: Math.round(c * 100) / 100,
+    };
   }
 
-  const allIngredients = meals.flatMap((meal) => meal.ingredients.map((ing) => ({ name: ing.name, cost: ing.cost })));
-
-  for (const ing of allIngredients) {
-    const matchedPantry = pantryMatchers.find(({ baseName }) => {
-      const regex = new RegExp(`(^|\\s|\\d)${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(s|es)?($|\\s|,)`, 'i');
-      return regex.test(ing.name.toLowerCase());
-    });
-    if (matchedPantry) {
-      pantryCostAccumulator.set(matchedPantry.raw, (pantryCostAccumulator.get(matchedPantry.raw) || 0) + ing.cost);
-      continue;
+  // Use the structured source field instead of re-running pantry regex
+  for (const meal of meals) {
+    for (const ing of meal.ingredients) {
+      if (ing.source === "pantry") {
+        // Find the matching pantry item to accumulate cost
+        const matchedPantry = pantryMatchersEarly.find(({ baseName }) => {
+          const regex = new RegExp(`(^|\\s|\\d)${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(s|es)?($|\\s|,)`, 'i');
+          return regex.test(ing.name.toLowerCase());
+        });
+        if (matchedPantry) {
+          pantryCostAccumulator.set(matchedPantry.raw, (pantryCostAccumulator.get(matchedPantry.raw) || 0) + ing.cost);
+        }
+      } else {
+        lists[categorizeItem(ing.name)].push(toShoppingItem(ing));
+      }
     }
-    lists[categorizeItem(ing.name)].push(toShoppingItem(ing.name, ing.cost));
   }
 
-  const pantryItemsList: ShoppingListItem[] = userPantryListEarly.map((name) => toShoppingItem(name, pantryCostAccumulator.get(name) || 0));
+  const pantryItemsList: ShoppingListItem[] = userPantryListEarly.map((name) => {
+    const parsed = parseIngredient(name);
+    const cost = pantryCostAccumulator.get(name) || 0;
+    return toShoppingItem({ name, normalizedName: parsed.baseName, qty: parsed.qty, unit: parsed.unit, cost });
+  });
   const allShoppingItems = [...lists.produce, ...lists.dairy, ...lists.plantBased, ...lists.dryGoods, ...lists.spicesCondiments];
   const totalCost = allShoppingItems.reduce((sum, item) => sum + item.cost, 0);
-  const lowCost = Math.floor(totalCost * 0.9);
-  const highCost = Math.ceil(totalCost * 1.1);
+  const totalCostMin = allShoppingItems.reduce((sum, item) => sum + item.costMin, 0);
+  const totalCostMax = allShoppingItems.reduce((sum, item) => sum + item.costMax, 0);
 
   return {
     metrics: {
       totalMeals, mealCounts: { breakfast: breakfastCount, lunch: lunchCount, dinner: dinnerCount, snack: snackCount },
-      costRange: `$${lowCost}–$${highCost}`, costLow: lowCost, costHigh: highCost,
+      costRange: `$${Math.floor(totalCostMin)}–$${Math.ceil(totalCostMax)}`,
+      costLow: Math.floor(totalCostMin),
+      costHigh: Math.ceil(totalCostMax),
       reuseScore: `${reusePercent}% of ingredients used in 2+ meals`,
       budget: budgetNum,
       ingredientReusePercent,
