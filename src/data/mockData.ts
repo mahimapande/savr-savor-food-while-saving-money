@@ -106,7 +106,7 @@ export interface FormInputs {
 // Structured ingredient builder – gracefully handles imperfect input
 // ---------------------------------------------------------------------------
 
-function buildStructuredIngredient(
+export function buildStructuredIngredient(
   rawName: string,
   opts: { isPantry?: boolean; note?: string } = {},
 ): Ingredient {
