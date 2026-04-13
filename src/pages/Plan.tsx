@@ -42,7 +42,7 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
   const groups = new Map<string, { qty: number; unit: string; base: string; cost: number; originalNames: string[] }>();
 
   for (const item of items) {
-    const parsed = parseIngredient(item);
+    const parsed = parseShoppingItem(item);
     const key = `${parsed.base}||${parsed.unit}`;
     const existing = groups.get(key);
     if (existing && parsed.unit !== "") {
