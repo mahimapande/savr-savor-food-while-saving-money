@@ -79,18 +79,12 @@ export interface FormInputs {
   };
 }
 
-// Recipe ingredients in the pool omit cost – it's computed from the price map
-interface RecipeIngredient {
-  name: string;
-  note?: string;
-}
-
 // Recipe pool with realistic quantities
-// Each recipe now has a cuisine tag for filtering
+// Hardcoded `cost` values in recipe ingredients are LEGACY and ignored at runtime.
+// All costs are computed from the centralized price map (src/data/priceMap.ts).
 interface RecipeWithCuisine extends Omit<Meal, "day" | "mealType" | "cooked"> {
   cuisine: string;
   mealType?: MealType;
-  ingredients: RecipeIngredient[];
 }
 
 const RECIPE_POOL: RecipeWithCuisine[] = [
