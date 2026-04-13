@@ -1,8 +1,10 @@
+import { computeIngredientCost } from './priceMap';
+
 export interface Ingredient {
   name: string;
   note?: string;
   pantry?: boolean;
-  cost: number; // per-item estimated cost in dollars
+  cost: number; // computed from centralized price map
 }
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
