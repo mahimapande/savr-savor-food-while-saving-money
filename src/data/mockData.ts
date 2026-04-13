@@ -79,11 +79,18 @@ export interface FormInputs {
   };
 }
 
-// Recipe pool with realistic quantities and per-item costs
+// Recipe ingredients in the pool omit cost – it's computed from the price map
+interface RecipeIngredient {
+  name: string;
+  note?: string;
+}
+
+// Recipe pool with realistic quantities
 // Each recipe now has a cuisine tag for filtering
 interface RecipeWithCuisine extends Omit<Meal, "day" | "mealType" | "cooked"> {
   cuisine: string;
   mealType?: MealType;
+  ingredients: RecipeIngredient[];
 }
 
 const RECIPE_POOL: RecipeWithCuisine[] = [
