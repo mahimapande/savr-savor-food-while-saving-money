@@ -13,20 +13,11 @@ const HAVE_STORAGE_KEY = "savr-have-items";
 const WEEKLY_PLAN_KEY = "weeklyPlan";
 const COOKED_MEALS_KEY = "savr-cooked-meals";
 
-interface ParsedItem {
-  qty: number;
-  unit: string;
-  base: string;
-  originalName: string;
-  cost: number;
-}
-
-function parseShoppingItem(item: ShoppingListItem): ParsedItem {
-  const parsed = sharedParseIngredient(item.name);
+function parseShoppingItem(item: ShoppingListItem) {
   return {
-    qty: parsed.qty,
-    unit: parsed.unit === "each" ? "" : parsed.unit,
-    base: parsed.baseName,
+    qty: item.qty,
+    unit: item.unit === "each" ? "" : item.unit,
+    base: item.normalizedName,
     originalName: item.name,
     cost: item.cost,
   };
