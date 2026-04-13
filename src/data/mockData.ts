@@ -1,10 +1,24 @@
-import { computeIngredientCost } from './priceMap';
+import { computeIngredientCost, parseIngredient } from './priceMap';
+
+export type IngredientSource = "pantry" | "grocery";
 
 export interface Ingredient {
+  /** Human-readable display string, e.g. "1 can chickpeas (15 oz)" */
   name: string;
+  /** Normalized base ingredient name from the shared parser, e.g. "chickpeas" */
+  normalizedName: string;
+  /** Parsed numeric quantity (defaults to 1 when unparseable) */
+  qty: number;
+  /** Parsed unit (defaults to "each" when unparseable) */
+  unit: string;
+  /** Original quantity string before parsing, e.g. "1 can" */
+  originalQtyString: string;
+  /** Whether this ingredient comes from the user's pantry or needs purchasing */
+  source: IngredientSource;
   note?: string;
-  pantry?: boolean;
   cost: number; // computed from centralized price map
+  /** @deprecated use source === "pantry" instead */
+  pantry?: boolean;
 }
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
@@ -14,11 +28,20 @@ export interface Meal {
   day: string;
   name: string;
   duration: string;
+  /** Prep time in minutes, parsed from duration string */
+  prepTimeMinutes: number;
   servings: number;
   tags: string[];
+  /** Cuisine tags for this meal, e.g. ["Indian"] */
+  cuisineTags: string[];
+  /** Dietary tags for this meal, e.g. ["Vegan"] */
+  dietaryTags: string[];
   reuseBadges: string[];
   estimatedCost: string;
   ingredients: Ingredient[];
+  /** Cooking instructions */
+  instructions: string[];
+  /** @deprecated use instructions instead */
   steps: string[];
   cooked?: boolean;
   mealType: MealType;
@@ -79,10 +102,41 @@ export interface FormInputs {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Structured ingredient builder – gracefully handles imperfect input
+// ---------------------------------------------------------------------------
+
+function buildStructuredIngredient(
+  rawName: string,
+  opts: { isPantry?: boolean; note?: string } = {},
+): Ingredient {
+  const parsed = parseIngredient(rawName);
+  // Build the original qty string (everything before the base name)
+  const baseIdx = rawName.toLowerCase().indexOf(parsed.baseName.charAt(0));
+  const originalQtyString = baseIdx > 0 ? rawName.slice(0, baseIdx).trim() : `${parsed.qty} ${parsed.unit}`;
+
+  return {
+    name: rawName,
+    normalizedName: parsed.baseName,
+    qty: parsed.qty,
+    unit: parsed.unit,
+    originalQtyString,
+    source: opts.isPantry ? "pantry" : "grocery",
+    note: opts.note,
+    cost: computeIngredientCost(rawName),
+    pantry: opts.isPantry || false,
+  };
+}
+
+function parseDurationMinutes(duration: string): number {
+  const match = duration.match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
 // Recipe pool with realistic quantities
 // Hardcoded `cost` values in recipe ingredients are LEGACY and ignored at runtime.
 // All costs are computed from the centralized price map (src/data/priceMap.ts).
-interface RecipeWithCuisine extends Omit<Meal, "day" | "mealType" | "cooked"> {
+interface RecipeWithCuisine extends Omit<Meal, "day" | "mealType" | "cooked" | "prepTimeMinutes" | "cuisineTags" | "dietaryTags" | "instructions"> {
   cuisine: string;
   mealType?: MealType;
 }
