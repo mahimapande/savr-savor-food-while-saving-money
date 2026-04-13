@@ -1571,32 +1571,46 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const meals: Meal[] = selected.map((recipe) => {
     const mt = recipe.mealType || "dinner" as MealType;
     const badges: string[] = [];
-    const ingredients = recipe.ingredients.map((ing) => ({
-      ...ing,
-      cost: computeIngredientCost(ing.name),  // computed from centralized price map
-      pantry: isUserPantryItem(ing.name),
-    }));
-    const pantryCount = ingredients.filter((ing) => ing.pantry).length;
+    const ingredients: Ingredient[] = recipe.ingredients.map((ing) => {
+      const isPantry = isUserPantryItem(ing.name);
+      return buildStructuredIngredient(ing.name, { isPantry, note: ing.note });
+    });
+    const pantryCount = ingredients.filter((ing) => ing.source === "pantry").length;
     if (pantryCount > 0) badges.push(`Uses ${pantryCount} pantry item${pantryCount > 1 ? "s" : ""}`);
     for (const ing of ingredients) {
-      const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
-      const count = shared.get(key) || 0;
-      if (count >= 2) { badges.push(`${key} used in ${count} meals`); break; }
+      const count = shared.get(ing.normalizedName) || 0;
+      if (count >= 2) { badges.push(`${ing.normalizedName} used in ${count} meals`); break; }
     }
     const baseCost = ingredients.reduce((sum, ing) => sum + ing.cost, 0);
     const adjustedCost = Math.max(2, baseCost).toFixed(2);
     badges.push(`Est. cost: ~$${adjustedCost}`);
+
+    // Extract dietary tags from recipe tags
+    const recipeDietaryTags = recipe.tags.filter((t) => DIETARY_TAGS.includes(t));
+    const finalTags = dietaryTags.length > 0 ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), ...dietaryTags.filter((dt) => {
+      const recipeTags = recipe.tags.map((t) => t.toLowerCase());
+      if (dt.toLowerCase().startsWith("vegan")) return recipeTags.includes("vegan");
+      if (dt.toLowerCase().startsWith("vegetarian")) return recipeTags.includes("vegetarian") || recipeTags.includes("vegan");
+      if (dt.toLowerCase().startsWith("pescatarian")) return recipeTags.includes("pescatarian");
+      return true;
+    })] : recipe.tags;
+
     return {
-      ...recipe, ingredients, day: getDayForMeal(mt),
+      id: recipe.id,
+      name: recipe.name,
+      duration: recipe.duration,
+      prepTimeMinutes: parseDurationMinutes(recipe.duration),
+      servings: recipe.servings,
+      tags: finalTags,
+      cuisineTags: [recipe.cuisine],
+      dietaryTags: recipeDietaryTags,
+      reuseBadges: badges,
+      estimatedCost: `$${adjustedCost}`,
+      ingredients,
+      instructions: recipe.steps,
+      steps: recipe.steps,
+      day: getDayForMeal(mt),
       mealType: mt,
-      estimatedCost: `$${adjustedCost}`, reuseBadges: badges,
-      tags: dietaryTags.length > 0 ? [...recipe.tags.filter((tag) => !DIETARY_TAGS.includes(tag)), ...dietaryTags.filter((dt) => {
-        const recipeTags = recipe.tags.map((t) => t.toLowerCase());
-        if (dt.toLowerCase().startsWith("vegan")) return recipeTags.includes("vegan");
-        if (dt.toLowerCase().startsWith("vegetarian")) return recipeTags.includes("vegetarian") || recipeTags.includes("vegan");
-        if (dt.toLowerCase().startsWith("pescatarian")) return recipeTags.includes("pescatarian");
-        return true;
-      })] : recipe.tags,
       cooked: false,
     };
   });
