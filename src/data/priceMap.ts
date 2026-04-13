@@ -167,8 +167,8 @@ export const INGREDIENT_PRICE_MAP: Record<string, PriceEntry> = {
   "hummus":             { unit: "tbsp", rate: 0.167 },
 
   // Seafood
-  "salmon fillet":      { unit: "oz",   rate: 0.58 },
-  "salmon fillets":     { unit: "oz",   rate: 0.58 },
+  "salmon fillet":      { unit: "each", rate: 3.50 },
+  "salmon fillets":     { unit: "each", rate: 3.50 },
   "cooked salmon leftovers": { unit: "oz", rate: 0.00 },
   "cod fillet":         { unit: "oz",   rate: 0.50 },
   "raw shrimp":         { unit: "oz",   rate: 0.46 },
