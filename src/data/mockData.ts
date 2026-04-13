@@ -133,11 +133,27 @@ function parseDurationMinutes(duration: string): number {
   return match ? parseInt(match[1], 10) : 0;
 }
 
+/** Raw ingredient as authored in the recipe pool – lightweight, pre-parsing */
+interface RawIngredient {
+  name: string;
+  cost: number; // LEGACY – ignored at runtime, kept for reference
+  note?: string;
+}
+
 // Recipe pool with realistic quantities
 // Hardcoded `cost` values in recipe ingredients are LEGACY and ignored at runtime.
 // All costs are computed from the centralized price map (src/data/priceMap.ts).
-interface RecipeWithCuisine extends Omit<Meal, "day" | "mealType" | "cooked" | "prepTimeMinutes" | "cuisineTags" | "dietaryTags" | "instructions"> {
+interface RecipeWithCuisine {
+  id: string;
+  name: string;
   cuisine: string;
+  duration: string;
+  servings: number;
+  tags: string[];
+  reuseBadges: string[];
+  estimatedCost: string;
+  ingredients: RawIngredient[];
+  steps: string[];
   mealType?: MealType;
 }
 
