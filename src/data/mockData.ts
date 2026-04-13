@@ -1491,12 +1491,10 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     const sharedEarly = findSharedIngredients(selected);
     selected.sort((a, b) => {
       const reuseA = a.ingredients.reduce((sum, ing) => {
-        const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
-        return sum + (sharedEarly.get(key) || 0);
+        return sum + (sharedEarly.get(parseIngredient(ing.name).baseName) || 0);
       }, 0);
       const reuseB = b.ingredients.reduce((sum, ing) => {
-        const key = ing.name.replace(/^\d+\s*(cups?|cans?|tbsp|tsp|oz|blocks?|bunch(es)?|cloves?|large|small|medium|inch|ripe)?\s*/i, "").toLowerCase().trim();
-        return sum + (sharedEarly.get(key) || 0);
+        return sum + (sharedEarly.get(parseIngredient(ing.name).baseName) || 0);
       }, 0);
       if (reuseB !== reuseA) return reuseB - reuseA;
       return parseFloat(a.estimatedCost.replace("$", "")) - parseFloat(b.estimatedCost.replace("$", ""));
