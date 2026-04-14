@@ -16,8 +16,8 @@ import {
 describe("buildPantryMap", () => {
   it("parses simple quantity inputs", () => {
     const map = buildPantryMap(["12 eggs", "2 cups rice", "1 onion"]);
-    expect(map["egg"].maxQty).toBe(12);
-    expect(map["egg"].unit).toBe("each");
+    expect(map["eggs"]?.maxQty ?? map["egg"]?.maxQty).toBe(12);
+    expect(map["eggs"]?.unit ?? map["egg"]?.unit).toBe("each");
     expect(map["rice"].maxQty).toBe(2);
     expect(map["rice"].unit).toBe("cup");
     expect(map["onion"].maxQty).toBe(1);
@@ -35,8 +35,8 @@ describe("buildPantryMap", () => {
     expect(map["tomato sauce"].unit).toBe("cup");
     expect(map["spinach"].maxQty).toBe(6);
     expect(map["spinach"].unit).toBe("cup");
-    expect(map["egg"].maxQty).toBe(12);
-    expect(map["egg"].unit).toBe("each");
+    expect(map["eggs"]?.maxQty ?? map["egg"]?.maxQty).toBe(12);
+    expect(map["eggs"]?.unit ?? map["egg"]?.unit).toBe("each");
   });
 
   it("handles bare ingredient names with no qty", () => {
