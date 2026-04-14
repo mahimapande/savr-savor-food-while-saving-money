@@ -64,7 +64,9 @@ describe("Pantry vs grocery split", () => {
 
   it("generates pantryItems list with accumulated costs", () => {
     const plan = generatePlan(BASE_INPUTS);
-    expect(plan.pantryItems.length).toBe(BASE_INPUTS.pantryItems.length);
+    // After enforcement, pantryItems only includes items actually used from pantry
+    expect(plan.pantryItems.length).toBeLessThanOrEqual(BASE_INPUTS.pantryItems.length);
+    expect(plan.pantryItems.length).toBeGreaterThan(0);
     for (const item of plan.pantryItems) {
       expect(typeof item.cost).toBe("number");
       expect(typeof item.costLikely).toBe("number");
