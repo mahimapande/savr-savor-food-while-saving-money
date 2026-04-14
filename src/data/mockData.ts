@@ -181,8 +181,215 @@ export function validatePlanData(plan: PlanData): PlanData {
 }
 
 // ---------------------------------------------------------------------------
-// Structured ingredient builder – gracefully handles imperfect input
+// Pantry-limit enforcement – treats LLM output as a proposal, clamps to real qty
 // ---------------------------------------------------------------------------
+
+export interface PantryBudget {
+  maxQty: number;
+  unit: string;
+}
+
+/**
+ * Builds a normalised pantry map from user input strings like "12 eggs", "1 lb pasta".
+ * Container units (jar, bag, dozen, etc.) are converted to canonical measurement units
+ * so they match recipe ingredient units.
+ */
+export function buildPantryMap(pantryInputs: string[]): Record<string, PantryBudget> {
+  const map: Record<string, PantryBudget> = {};
+  for (const raw of pantryInputs) {
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const parsed = parseIngredient(trimmed);
+    let qty = parsed.qty;
+    let unit = parsed.unit;
+
+    // Convert container units to canonical measurement units
+    const containerConv = CONTAINER_CONVERSIONS[unit];
+    if (containerConv) {
+      qty = qty * containerConv.factor;
+      unit = containerConv.toUnit;
+    }
+
+    // Convert lb → oz for consistency with recipes that use oz
+    if (unit === "lb") {
+      const converted = convertQty(qty, "lb", "oz");
+      if (converted != null) { qty = converted; unit = "oz"; }
+    }
+
+    const name = parsed.baseName;
+    if (map[name]) {
+      // Accumulate if same ingredient listed multiple times
+      const existing = map[name];
+      const converted = convertQty(qty, unit, existing.unit);
+      if (converted != null) {
+        existing.maxQty += converted;
+      } else {
+        // Can't convert, keep existing
+      }
+    } else {
+      map[name] = { maxQty: qty, unit };
+    }
+  }
+  return map;
+}
+
+/**
+ * Post-processes a generated PlanData to enforce pantry limits.
+ * - Aggregates pantry usage across all meals
+ * - Clamps usage at maxQty per ingredient
+ * - Shifts excess to the shopping list
+ * - Rebuilds pantryItems and recalculates metrics
+ */
+export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): PlanData {
+  const pantryMap = buildPantryMap(pantryInputs);
+
+  // 1. Aggregate actual pantry usage by normalizedName
+  const pantryUsage: Record<string, { totalQty: number; unit: string; ingredients: Ingredient[] }> = {};
+
+  for (const meal of plan.meals) {
+    for (const ing of meal.ingredients) {
+      if (ing.source !== "pantry") continue;
+      const key = ing.normalizedName;
+      if (!pantryUsage[key]) {
+        pantryUsage[key] = { totalQty: 0, unit: ing.unit, ingredients: [] };
+      }
+      // Convert to the usage accumulator's unit if possible
+      const converted = convertQty(ing.qty, ing.unit, pantryUsage[key].unit);
+      pantryUsage[key].totalQty += converted != null ? converted : ing.qty;
+      pantryUsage[key].ingredients.push(ing);
+    }
+  }
+
+  // 2. Clamp and compute excess
+  const excessToShop: { name: string; normalizedName: string; qty: number; unit: string }[] = [];
+  const clampedPantryUsage: Record<string, { usedQty: number; unit: string }> = {};
+
+  for (const [name, usage] of Object.entries(pantryUsage)) {
+    const budget = pantryMap[name];
+    if (!budget) {
+      // No pantry entry for this ingredient — all usage becomes grocery
+      excessToShop.push({
+        name: name,
+        normalizedName: name,
+        qty: usage.totalQty,
+        unit: usage.unit,
+      });
+      // Reclassify these ingredients as grocery in the meals
+      for (const ing of usage.ingredients) {
+        ing.source = "grocery";
+        ing.pantry = false;
+      }
+      continue;
+    }
+
+    // Convert budget to usage unit if needed
+    let budgetQtyInUsageUnit = budget.maxQty;
+    if (budget.unit !== usage.unit) {
+      const converted = convertQty(budget.maxQty, budget.unit, usage.unit);
+      if (converted != null) budgetQtyInUsageUnit = converted;
+      // If can't convert, assume same unit
+    }
+
+    if (usage.totalQty <= budgetQtyInUsageUnit) {
+      // Sufficient pantry
+      clampedPantryUsage[name] = { usedQty: usage.totalQty, unit: usage.unit };
+    } else {
+      // Excess — cap pantry at budget, shift rest to grocery
+      clampedPantryUsage[name] = { usedQty: budgetQtyInUsageUnit, unit: usage.unit };
+      const excess = usage.totalQty - budgetQtyInUsageUnit;
+      excessToShop.push({
+        name: name,
+        normalizedName: name,
+        qty: excess,
+        unit: usage.unit,
+      });
+    }
+  }
+
+  // 3. Add excess to shopping list
+  const newLists: Record<string, ShoppingListItem[]> = {
+    produce: [...plan.shoppingList.produce],
+    dairy: [...plan.shoppingList.dairy],
+    plantBased: [...plan.shoppingList.plantBased],
+    dryGoods: [...plan.shoppingList.dryGoods],
+    spicesCondiments: [...plan.shoppingList.spicesCondiments],
+  };
+
+  for (const excess of excessToShop) {
+    const cost = computeIngredientCost(`${excess.qty} ${excess.unit} ${excess.normalizedName}`);
+    const item: ShoppingListItem = {
+      name: `${excess.qty} ${excess.unit} ${excess.normalizedName}`,
+      normalizedName: excess.normalizedName,
+      qty: excess.qty,
+      unit: excess.unit,
+      cost,
+      costMin: Math.floor(cost * 0.9 * 100) / 100,
+      costMax: Math.ceil(cost * 1.1 * 100) / 100,
+      costLikely: Math.round(cost * 100) / 100,
+    };
+
+    const category = categorizeItem(excess.normalizedName);
+    // Try to merge with existing item of same normalizedName
+    const existing = newLists[category].find((i) => i.normalizedName === excess.normalizedName);
+    if (existing) {
+      const addedQty = convertQty(excess.qty, excess.unit, existing.unit);
+      const qtyToAdd = addedQty != null ? addedQty : excess.qty;
+      existing.qty += qtyToAdd;
+      existing.cost += item.cost;
+      existing.costMin += item.costMin;
+      existing.costMax += item.costMax;
+      existing.costLikely += item.costLikely;
+      existing.name = `${existing.qty} ${existing.unit} ${existing.normalizedName}`;
+    } else {
+      newLists[category].push(item);
+    }
+  }
+
+  // 4. Rebuild pantryItems from clamped usage
+  const pantryItems: ShoppingListItem[] = Object.entries(clampedPantryUsage).map(([name, usage]) => {
+    const cost = computeIngredientCost(`${usage.usedQty} ${usage.unit} ${name}`);
+    return {
+      name: `${usage.usedQty} ${usage.unit} ${name}`,
+      normalizedName: name,
+      qty: usage.usedQty,
+      unit: usage.unit,
+      cost,
+      costMin: Math.floor(cost * 0.9 * 100) / 100,
+      costMax: Math.ceil(cost * 1.1 * 100) / 100,
+      costLikely: Math.round(cost * 100) / 100,
+    };
+  });
+
+  // 5. Recalculate metrics from finalized shopping list
+  const allShoppingItems = [
+    ...newLists.produce, ...newLists.dairy, ...newLists.plantBased,
+    ...newLists.dryGoods, ...newLists.spicesCondiments,
+  ];
+  const totalCost = allShoppingItems.reduce((s, i) => s + i.cost, 0);
+  const totalCostMin = allShoppingItems.reduce((s, i) => s + i.costMin, 0);
+  const totalCostMax = allShoppingItems.reduce((s, i) => s + i.costMax, 0);
+
+  return {
+    ...plan,
+    shoppingList: {
+      produce: newLists.produce,
+      dairy: newLists.dairy,
+      plantBased: newLists.plantBased,
+      dryGoods: newLists.dryGoods,
+      spicesCondiments: newLists.spicesCondiments,
+      totalItems: allShoppingItems.length,
+      estimatedCost: `$${Math.round(totalCost)}`,
+    },
+    pantryItems,
+    metrics: {
+      ...plan.metrics,
+      costRange: `$${Math.floor(totalCostMin)}–$${Math.ceil(totalCostMax)}`,
+      costLow: Math.floor(totalCostMin),
+      costHigh: Math.ceil(totalCostMax),
+    },
+  };
+}
+
 
 export function buildStructuredIngredient(
   rawName: string,
