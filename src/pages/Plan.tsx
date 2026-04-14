@@ -301,7 +301,15 @@ const Plan = () => {
           </div>
         )}
 
-        {/* Meals by type – tabbed */}
+        {/* Dev-only debug panel */}
+        {PlanDebugPanel && debugInfo && (
+          <div className="mb-6">
+            <Suspense fallback={null}>
+              <PlanDebugPanel debug={debugInfo} />
+            </Suspense>
+          </div>
+        )}
+
         {(() => {
           const typeLabels: Record<MealType, { label: string; icon: React.ReactNode }> = {
             breakfast: { label: "Breakfast", icon: <Coffee className="h-4 w-4" /> },
