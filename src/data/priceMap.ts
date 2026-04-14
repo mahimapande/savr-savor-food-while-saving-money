@@ -247,18 +247,39 @@ const UNIT_CONVERSIONS: Record<string, Record<string, number>> = {
   lb:   { oz: 16 },
 };
 
+/**
+ * Container-to-measurement conversions.
+ * Used when pantry input uses a container unit (e.g. "1 jar tomato sauce")
+ * but recipe usage is in measurement units (e.g. "2 cups").
+ * Map key = container unit, value = { toUnit, factor }.
+ */
+export const CONTAINER_CONVERSIONS: Record<string, { toUnit: string; factor: number }> = {
+  jar:    { toUnit: "cup",  factor: 2 },     // 1 jar ≈ 2 cups
+  bag:    { toUnit: "cup",  factor: 6 },     // 1 bag ≈ 6 cups (e.g. spinach)
+  box:    { toUnit: "cup",  factor: 8 },     // 1 box ≈ 8 cups
+  carton: { toUnit: "cup",  factor: 4 },     // 1 carton ≈ 4 cups
+  bottle: { toUnit: "cup",  factor: 2 },     // 1 bottle ≈ 2 cups
+  dozen:  { toUnit: "each", factor: 12 },    // 1 dozen = 12 each
+};
+
 function normalizeUnit(raw: string): string {
   const lower = raw.toLowerCase().trim();
   return UNIT_ALIASES[lower] || lower;
 }
 
-function convertQty(qty: number, fromUnit: string, toUnit: string): number | null {
+export function convertQty(qty: number, fromUnit: string, toUnit: string): number | null {
   if (fromUnit === toUnit) return qty;
   const table = UNIT_CONVERSIONS[fromUnit];
   if (table && table[toUnit] != null) return qty * table[toUnit];
   // reverse check
   const rev = UNIT_CONVERSIONS[toUnit];
   if (rev && rev[fromUnit] != null) return qty / rev[fromUnit];
+  // container conversions
+  const container = CONTAINER_CONVERSIONS[fromUnit];
+  if (container && container.toUnit === toUnit) return qty * container.factor;
+  // reverse container
+  const revContainer = Object.entries(CONTAINER_CONVERSIONS).find(([, v]) => v.toUnit === fromUnit);
+  if (revContainer && revContainer[0] === toUnit) return qty / revContainer[1].factor;
   return null;
 }
 
