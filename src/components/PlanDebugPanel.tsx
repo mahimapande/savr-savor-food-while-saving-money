@@ -1,0 +1,183 @@
+import { useState } from "react";
+import { PlanDebugInfo } from "@/data/mockData";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronRight, Bug, Copy, Check, AlertTriangle, CheckCircle } from "lucide-react";
+
+interface Props {
+  debug: PlanDebugInfo;
+}
+
+const PlanDebugPanel = ({ debug }: Props) => {
+  const [open, setOpen] = useState(false);
+  const [copiedRaw, setCopiedRaw] = useState(false);
+  const [copiedFinal, setCopiedFinal] = useState(false);
+
+  const copyToClipboard = (json: unknown, setter: (v: boolean) => void) => {
+    navigator.clipboard.writeText(JSON.stringify(json, null, 2));
+    setter(true);
+    setTimeout(() => setter(false), 2000);
+  };
+
+  // Build overview rows
+  const allIngredients = new Set([
+    ...Object.keys(debug.pantryUsageBeforeEnforcement),
+    ...Object.keys(debug.pantryUsageAfterEnforcement),
+    ...debug.excessMovedToGrocery.map((e) => e.name),
+  ]);
+
+  const pantryMapFromInputs: Record<string, { maxQty: number; unit: string }> = {};
+  // Reconstruct from rawPlan pantryItems
+  for (const item of debug.rawPlan.pantryItems) {
+    pantryMapFromInputs[item.normalizedName] = { maxQty: item.qty, unit: item.unit };
+  }
+
+  const rows = [...allIngredients].map((name) => {
+    const raw = debug.pantryUsageBeforeEnforcement[name];
+    const final = debug.pantryUsageAfterEnforcement[name];
+    const excess = debug.excessMovedToGrocery.find((e) => e.name === name);
+    const pantryMax = pantryMapFromInputs[name];
+    const exceeded = raw && pantryMax && raw.totalQty > pantryMax.maxQty;
+    return { name, pantryMax, raw, final, excess, exceeded };
+  });
+
+  const { validation } = debug;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <Button
+          variant="outline"
+          className="w-full justify-between border-dashed border-muted-foreground/30 bg-muted/30 text-muted-foreground hover:bg-muted/50"
+        >
+          <span className="flex items-center gap-2 text-xs font-mono">
+            <Bug className="h-3.5 w-3.5" />
+            Debug Panel (dev only)
+          </span>
+          {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <Card className="mt-2 border-dashed border-muted-foreground/30 bg-muted/20 p-4">
+          {/* Validation badges */}
+          <div className="mb-4 flex flex-wrap gap-2">
+            <ValidationBadge label="Schema valid" ok={validation.schemaValid} />
+            <ValidationBadge label="Pantry capped" ok={validation.pantryCapped} />
+            <ValidationBadge label="Metrics recomputed" ok={validation.metricsRecomputed} />
+          </div>
+
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="w-full grid grid-cols-3">
+              <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
+              <TabsTrigger value="raw" className="text-xs">Raw JSON</TabsTrigger>
+              <TabsTrigger value="final" className="text-xs">Final JSON</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="mt-3">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-muted-foreground/20 text-left text-muted-foreground">
+                      <th className="pb-1 pr-3">Ingredient</th>
+                      <th className="pb-1 pr-3">Pantry Max</th>
+                      <th className="pb-1 pr-3">Raw Usage</th>
+                      <th className="pb-1 pr-3">Final Usage</th>
+                      <th className="pb-1">Excess → Grocery</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr
+                        key={row.name}
+                        className={`border-b border-muted-foreground/10 ${row.exceeded ? "bg-destructive/10" : ""}`}
+                      >
+                        <td className="py-1 pr-3 font-medium text-foreground">
+                          {row.name}
+                          {row.exceeded && <AlertTriangle className="inline ml-1 h-3 w-3 text-destructive" />}
+                        </td>
+                        <td className="py-1 pr-3 text-muted-foreground">
+                          {row.pantryMax ? `${row.pantryMax.maxQty} ${row.pantryMax.unit}` : "—"}
+                        </td>
+                        <td className="py-1 pr-3 text-muted-foreground">
+                          {row.raw ? `${row.raw.totalQty} ${row.raw.unit}` : "—"}
+                        </td>
+                        <td className="py-1 pr-3 text-muted-foreground">
+                          {row.final ? `${row.final.usedQty} ${row.final.unit}` : "—"}
+                        </td>
+                        <td className="py-1 text-muted-foreground">
+                          {row.excess ? (
+                            <span className="text-destructive font-medium">
+                              +{row.excess.qty} {row.excess.unit}
+                            </span>
+                          ) : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                    {rows.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-3 text-center text-muted-foreground">
+                          No pantry ingredients used
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="raw" className="mt-3">
+              <div className="flex justify-end mb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => copyToClipboard(debug.rawPlan, setCopiedRaw)}
+                >
+                  {copiedRaw ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                  {copiedRaw ? "Copied" : "Copy raw JSON"}
+                </Button>
+              </div>
+              <pre className="max-h-80 overflow-auto rounded bg-muted p-3 text-[10px] leading-tight text-foreground">
+                {JSON.stringify(debug.rawPlan, null, 2)}
+              </pre>
+            </TabsContent>
+
+            <TabsContent value="final" className="mt-3">
+              <div className="flex justify-end mb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => copyToClipboard(debug.finalPlan, setCopiedFinal)}
+                >
+                  {copiedFinal ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                  {copiedFinal ? "Copied" : "Copy final JSON"}
+                </Button>
+              </div>
+              <pre className="max-h-80 overflow-auto rounded bg-muted p-3 text-[10px] leading-tight text-foreground">
+                {JSON.stringify(debug.finalPlan, null, 2)}
+              </pre>
+            </TabsContent>
+          </Tabs>
+        </Card>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
+function ValidationBadge({ label, ok }: { label: string; ok: boolean }) {
+  return (
+    <Badge
+      variant={ok ? "default" : "destructive"}
+      className="gap-1 text-[10px] font-mono"
+    >
+      {ok ? <CheckCircle className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+      {label}
+    </Badge>
+  );
+}
+
+export default PlanDebugPanel;

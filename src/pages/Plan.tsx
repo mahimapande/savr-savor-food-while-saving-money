@@ -1,6 +1,10 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem, MealType } from "@/data/mockData";
+import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem, MealType, PlanDebugInfo } from "@/data/mockData";
+
+const PlanDebugPanel = import.meta.env.DEV
+  ? lazy(() => import("@/components/PlanDebugPanel"))
+  : null;
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -120,6 +124,11 @@ const Plan = () => {
     localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(generated));
     return generated;
   }, [formInputs]);
+
+  const debugInfo = useMemo<PlanDebugInfo | null>(() => {
+    if (!import.meta.env.DEV) return null;
+    return (plan as any).__debugInfo ?? null;
+  }, [plan]);
 
   const [cookedMeals, setCookedMeals] = useState<Set<string>>(() => {
     try {
@@ -292,7 +301,15 @@ const Plan = () => {
           </div>
         )}
 
-        {/* Meals by type – tabbed */}
+        {/* Dev-only debug panel */}
+        {PlanDebugPanel && debugInfo && (
+          <div className="mb-6">
+            <Suspense fallback={null}>
+              <PlanDebugPanel debug={debugInfo} />
+            </Suspense>
+          </div>
+        )}
+
         {(() => {
           const typeLabels: Record<MealType, { label: string; icon: React.ReactNode }> = {
             breakfast: { label: "Breakfast", icon: <Coffee className="h-4 w-4" /> },

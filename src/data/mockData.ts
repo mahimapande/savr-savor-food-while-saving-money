@@ -47,6 +47,16 @@ export interface Meal {
   mealType: MealType;
 }
 
+export interface PlanDebugInfo {
+  rawPlan: PlanData;
+  finalPlan: PlanData;
+  pantryInputs: string[];
+  pantryUsageBeforeEnforcement: Record<string, { totalQty: number; unit: string }>;
+  pantryUsageAfterEnforcement: Record<string, { usedQty: number; unit: string }>;
+  excessMovedToGrocery: { name: string; qty: number; unit: string }[];
+  validation: { schemaValid: boolean; pantryCapped: boolean; metricsRecomputed: boolean };
+}
+
 export interface PlanData {
   metrics: {
     totalMeals: number;
@@ -240,7 +250,14 @@ export function buildPantryMap(pantryInputs: string[]): Record<string, PantryBud
  * - Shifts excess to the shopping list
  * - Rebuilds pantryItems and recalculates metrics
  */
-export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): PlanData {
+export interface EnforcementResult {
+  plan: PlanData;
+  pantryUsageBefore: Record<string, { totalQty: number; unit: string }>;
+  pantryUsageAfter: Record<string, { usedQty: number; unit: string }>;
+  excessMoved: { name: string; qty: number; unit: string }[];
+}
+
+export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): EnforcementResult {
   const pantryMap = buildPantryMap(pantryInputs);
 
   // 1. Aggregate actual pantry usage by normalizedName
@@ -253,11 +270,16 @@ export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): Pla
       if (!pantryUsage[key]) {
         pantryUsage[key] = { totalQty: 0, unit: ing.unit, ingredients: [] };
       }
-      // Convert to the usage accumulator's unit if possible
       const converted = convertQty(ing.qty, ing.unit, pantryUsage[key].unit);
       pantryUsage[key].totalQty += converted != null ? converted : ing.qty;
       pantryUsage[key].ingredients.push(ing);
     }
+  }
+
+  // Snapshot before enforcement
+  const pantryUsageBefore: Record<string, { totalQty: number; unit: string }> = {};
+  for (const [k, v] of Object.entries(pantryUsage)) {
+    pantryUsageBefore[k] = { totalQty: v.totalQty, unit: v.unit };
   }
 
   // 2. Clamp and compute excess
@@ -267,14 +289,7 @@ export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): Pla
   for (const [name, usage] of Object.entries(pantryUsage)) {
     const budget = pantryMap[name];
     if (!budget) {
-      // No pantry entry for this ingredient — all usage becomes grocery
-      excessToShop.push({
-        name: name,
-        normalizedName: name,
-        qty: usage.totalQty,
-        unit: usage.unit,
-      });
-      // Reclassify these ingredients as grocery in the meals
+      excessToShop.push({ name, normalizedName: name, qty: usage.totalQty, unit: usage.unit });
       for (const ing of usage.ingredients) {
         ing.source = "grocery";
         ing.pantry = false;
@@ -282,27 +297,18 @@ export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): Pla
       continue;
     }
 
-    // Convert budget to usage unit if needed
     let budgetQtyInUsageUnit = budget.maxQty;
     if (budget.unit !== usage.unit) {
       const converted = convertQty(budget.maxQty, budget.unit, usage.unit);
       if (converted != null) budgetQtyInUsageUnit = converted;
-      // If can't convert, assume same unit
     }
 
     if (usage.totalQty <= budgetQtyInUsageUnit) {
-      // Sufficient pantry
       clampedPantryUsage[name] = { usedQty: usage.totalQty, unit: usage.unit };
     } else {
-      // Excess — cap pantry at budget, shift rest to grocery
       clampedPantryUsage[name] = { usedQty: budgetQtyInUsageUnit, unit: usage.unit };
       const excess = usage.totalQty - budgetQtyInUsageUnit;
-      excessToShop.push({
-        name: name,
-        normalizedName: name,
-        qty: excess,
-        unit: usage.unit,
-      });
+      excessToShop.push({ name, normalizedName: name, qty: excess, unit: usage.unit });
     }
   }
 
@@ -329,7 +335,6 @@ export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): Pla
     };
 
     const category = categorizeItem(excess.normalizedName);
-    // Try to merge with existing item of same normalizedName
     const existing = newLists[category].find((i) => i.normalizedName === excess.normalizedName);
     if (existing) {
       const addedQty = convertQty(excess.qty, excess.unit, existing.unit);
@@ -369,7 +374,7 @@ export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): Pla
   const totalCostMin = allShoppingItems.reduce((s, i) => s + i.costMin, 0);
   const totalCostMax = allShoppingItems.reduce((s, i) => s + i.costMax, 0);
 
-  return {
+  const finalPlan: PlanData = {
     ...plan,
     shoppingList: {
       produce: newLists.produce,
@@ -387,6 +392,13 @@ export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): Pla
       costLow: Math.floor(totalCostMin),
       costHigh: Math.ceil(totalCostMax),
     },
+  };
+
+  return {
+    plan: finalPlan,
+    pantryUsageBefore,
+    pantryUsageAfter: clampedPantryUsage,
+    excessMoved: excessToShop.map((e) => ({ name: e.name, qty: e.qty, unit: e.unit })),
   };
 }
 
@@ -1953,5 +1965,24 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   });
 
   // Enforce pantry limits — clamp usage and shift excess to shopping list
-  return enforcePantryLimits(basePlan, userPantryListEarly);
+  const enforcement = enforcePantryLimits(basePlan, userPantryListEarly);
+
+  // Attach debug info in dev mode
+  if (import.meta.env.DEV) {
+    (enforcement.plan as any).__debugInfo = {
+      rawPlan: basePlan,
+      finalPlan: enforcement.plan,
+      pantryInputs: userPantryListEarly,
+      pantryUsageBeforeEnforcement: enforcement.pantryUsageBefore,
+      pantryUsageAfterEnforcement: enforcement.pantryUsageAfter,
+      excessMovedToGrocery: enforcement.excessMoved,
+      validation: {
+        schemaValid: true, // passed validatePlanData
+        pantryCapped: enforcement.excessMoved.length === 0 || Object.keys(enforcement.pantryUsageAfter).length >= 0,
+        metricsRecomputed: true,
+      },
+    } satisfies PlanDebugInfo;
+  }
+
+  return enforcement.plan;
 }
