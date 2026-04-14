@@ -125,6 +125,11 @@ const Plan = () => {
     return generated;
   }, [formInputs]);
 
+  const debugInfo = useMemo<PlanDebugInfo | null>(() => {
+    if (!import.meta.env.DEV) return null;
+    return (plan as any).__debugInfo ?? null;
+  }, [plan]);
+
   const [cookedMeals, setCookedMeals] = useState<Set<string>>(() => {
     try {
       const s = localStorage.getItem(COOKED_MEALS_KEY);
