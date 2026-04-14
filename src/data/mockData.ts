@@ -47,6 +47,16 @@ export interface Meal {
   mealType: MealType;
 }
 
+export interface PlanDebugInfo {
+  rawPlan: PlanData;
+  finalPlan: PlanData;
+  pantryInputs: string[];
+  pantryUsageBeforeEnforcement: Record<string, { totalQty: number; unit: string }>;
+  pantryUsageAfterEnforcement: Record<string, { usedQty: number; unit: string }>;
+  excessMovedToGrocery: { name: string; qty: number; unit: string }[];
+  validation: { schemaValid: boolean; pantryCapped: boolean; metricsRecomputed: boolean };
+}
+
 export interface PlanData {
   metrics: {
     totalMeals: number;
