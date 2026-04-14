@@ -1933,7 +1933,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   const totalCostMin = allShoppingItems.reduce((sum, item) => sum + item.costMin, 0);
   const totalCostMax = allShoppingItems.reduce((sum, item) => sum + item.costMax, 0);
 
-  return validatePlanData({
+  const basePlan = validatePlanData({
     metrics: {
       totalMeals, mealCounts: { breakfast: breakfastCount, lunch: lunchCount, dinner: dinnerCount, snack: snackCount },
       costRange: `$${Math.floor(totalCostMin)}–$${Math.ceil(totalCostMax)}`,
@@ -1951,4 +1951,7 @@ export function generatePlan(inputs?: FormInputs): PlanData {
     },
     pantryItems: pantryItemsList,
   });
+
+  // Enforce pantry limits — clamp usage and shift excess to shopping list
+  return enforcePantryLimits(basePlan, userPantryListEarly);
 }
