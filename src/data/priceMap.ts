@@ -289,7 +289,7 @@ export function convertQty(qty: number, fromUnit: string, toUnit: string): numbe
 
 // Matches patterns like: "1 can", "2.5 cups", "1/2 cup", "1 1/2 cups", "12 oz"
 const QTY_UNIT_RE =
-  /^([\d]+(?:[./][\d]+)?(?:\s+[\d]+\/[\d]+)?)\s*(cups?|cans?|tbsps?|tsps?|oz|lbs?|bunch(?:es)?|cloves?|blocks?|large|small|medium|slices?|sheets?|inch|fillets?|stalks?)\b\s*/i;
+  /^([\d]+(?:[./][\d]+)?(?:\s+[\d]+\/[\d]+)?)\s*(cups?|cans?|tbsps?|tsps?|oz|lbs?|bunch(?:es)?|cloves?|blocks?|large|small|medium|slices?|sheets?|inch|fillets?|stalks?|jars?|bags?|box(?:es)?|cartons?|bottles?|dozens?)\b\s*/i;
 
 // Matches just a leading number with no unit (including mixed numbers like "1 1/2")
 const QTY_ONLY_RE = /^([\d]+(?:[./][\d]+)?(?:\s+[\d]+\/[\d]+)?)\s+/;
