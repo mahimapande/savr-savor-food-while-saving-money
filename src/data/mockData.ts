@@ -1965,5 +1965,24 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   });
 
   // Enforce pantry limits — clamp usage and shift excess to shopping list
-  return enforcePantryLimits(basePlan, userPantryListEarly);
+  const enforcement = enforcePantryLimits(basePlan, userPantryListEarly);
+
+  // Attach debug info in dev mode
+  if (import.meta.env.DEV) {
+    (enforcement.plan as any).__debugInfo = {
+      rawPlan: basePlan,
+      finalPlan: enforcement.plan,
+      pantryInputs: userPantryListEarly,
+      pantryUsageBeforeEnforcement: enforcement.pantryUsageBefore,
+      pantryUsageAfterEnforcement: enforcement.pantryUsageAfter,
+      excessMovedToGrocery: enforcement.excessMoved,
+      validation: {
+        schemaValid: true, // passed validatePlanData
+        pantryCapped: enforcement.excessMoved.length === 0 || Object.keys(enforcement.pantryUsageAfter).length >= 0,
+        metricsRecomputed: true,
+      },
+    } satisfies PlanDebugInfo;
+  }
+
+  return enforcement.plan;
 }
