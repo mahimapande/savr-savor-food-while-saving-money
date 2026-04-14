@@ -1,6 +1,10 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem, MealType } from "@/data/mockData";
+import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem, MealType, PlanDebugInfo } from "@/data/mockData";
+
+const PlanDebugPanel = import.meta.env.DEV
+  ? lazy(() => import("@/components/PlanDebugPanel"))
+  : null;
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
