@@ -236,6 +236,18 @@ const UNIT_ALIASES: Record<string, string> = {
   sheet: "each",
   stalks: "each",
   stalk: "each",
+  jars: "jar",
+  jar: "jar",
+  bags: "bag",
+  bag: "bag",
+  boxes: "box",
+  box: "box",
+  cartons: "carton",
+  carton: "carton",
+  bottles: "bottle",
+  bottle: "bottle",
+  dozens: "dozen",
+  dozen: "dozen",
 };
 
 // Conversions between compatible units: from → to → multiplier
