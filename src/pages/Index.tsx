@@ -127,7 +127,9 @@ const Index = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const totalMeals = mealCounts.breakfast + mealCounts.lunch + mealCounts.dinner + mealCounts.snack;
@@ -142,18 +144,45 @@ const Index = () => {
       mealDays: mealDays as FormInputs["mealDays"],
     };
 
+    setIsGenerating(true);
     localStorage.clear();
-    const generated = generatePlan(inputs);
-    localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(generated));
     localStorage.setItem("formInputs", JSON.stringify(inputs));
-    localStorage.setItem(
-      HAVE_STORAGE_KEY,
-      JSON.stringify(generated.pantryItems.map((item) => item.name))
-    );
 
-    navigate("/plan", {
-      state: inputs,
-    });
+    try {
+      const result = await generatePlanFromAI(inputs);
+
+      // Store without __debugInfo to avoid bloating localStorage
+      const { __debugInfo, ...storable } = result.plan as any;
+      localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(storable));
+      localStorage.setItem(
+        HAVE_STORAGE_KEY,
+        JSON.stringify(result.plan.pantryItems.map((item) => item.name))
+      );
+
+      if (result.source === "local" && result.error) {
+        toast({
+          title: "Using offline plan",
+          description: `AI generation failed: ${result.error}. Showing a locally generated plan instead.`,
+          variant: "destructive",
+        });
+      } else if (result.source === "ai") {
+        toast({
+          title: "Plan generated with AI ✨",
+          description: "Your personalized meal plan is ready.",
+        });
+      }
+
+      navigate("/plan", { state: { ...inputs, _planSource: result.source, _generatedPlan: result.plan } });
+    } catch (err) {
+      console.error("Plan generation failed:", err);
+      toast({
+        title: "Generation failed",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
