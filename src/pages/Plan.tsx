@@ -11,8 +11,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ChefHat, DollarSign, ShoppingCart, Clock, ChevronRight, Package, ArrowRight, ArrowLeft, PiggyBank, Check, Sun, Coffee, UtensilsCrossed, Cookie, Wallet, RefreshCw, AlertTriangle } from "lucide-react";
+import { ChefHat, DollarSign, ShoppingCart, Clock, ChevronRight, Package, ArrowRight, ArrowLeft, PiggyBank, Check, Sun, Coffee, UtensilsCrossed, Cookie, Wallet, RefreshCw, AlertTriangle, Bug } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 
 const HAVE_STORAGE_KEY = "savr-have-items";
 const WEEKLY_PLAN_KEY = "weeklyPlan";
@@ -140,6 +141,13 @@ const Plan = () => {
     if (!import.meta.env.DEV) return null;
     return (plan as any).__debugInfo ?? null;
   }, [plan]);
+
+  const [showDebugTools, setShowDebugToolsState] = useState(() => getShowDebugTools());
+  const toggleDebugTools = useCallback((checked: boolean) => {
+    setShowDebugToolsState(checked);
+    setShowDebugTools(checked);
+  }, []);
+  const showDebugPanel = import.meta.env.DEV && showDebugTools && !!debugInfo;
 
   const [cookedMeals, setCookedMeals] = useState<Set<string>>(() => {
     try {
