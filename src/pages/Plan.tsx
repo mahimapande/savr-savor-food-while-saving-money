@@ -103,7 +103,10 @@ const Plan = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const formInputs = useMemo<FormInputs | undefined>(() => {
-    if (location.state) return location.state as FormInputs;
+    if (location.state) {
+      const { _planSource, _generatedPlan, ...inputs } = location.state as any;
+      return inputs as FormInputs;
+    }
     try {
       const saved = localStorage.getItem("formInputs");
       if (saved) return JSON.parse(saved) as FormInputs;
@@ -112,10 +115,17 @@ const Plan = () => {
   }, [location.state]);
 
   const plan = useMemo<PlanData>(() => {
-    // If we arrived with fresh form inputs (via location.state), always regenerate
+    // If we arrived with a pre-generated plan from the AI service, use it
+    if (location.state?._generatedPlan) {
+      const generated = location.state._generatedPlan as PlanData;
+      const { __debugInfo, ...storable } = generated as any;
+      localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(storable));
+      return generated;
+    }
+
+    // If we arrived with fresh form inputs (via location.state), generate locally as fallback
     if (location.state) {
       const generated = generatePlan(formInputs);
-      // Store without __debugInfo to avoid bloating localStorage
       const { __debugInfo, ...storable } = generated as any;
       localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(storable));
       return generated;
