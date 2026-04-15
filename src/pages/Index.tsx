@@ -6,8 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { generatePlan, FormInputs } from "@/data/mockData";
-import { UtensilsCrossed, Plus, X } from "lucide-react";
+import { FormInputs } from "@/data/mockData";
+import { generatePlanFromAI } from "@/services/planService";
+import { UtensilsCrossed, Plus, X, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 const CUISINES = ["Italian", "Thai", "American"];
 const PANTRY_DEFAULTS = [
