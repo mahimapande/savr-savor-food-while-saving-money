@@ -1967,17 +1967,18 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   // Enforce pantry limits — clamp usage and shift excess to shopping list
   const enforcement = enforcePantryLimits(basePlan, userPantryListEarly);
 
-  // Attach debug info in dev mode
+  // Attach debug info in dev mode (snapshot finalPlan to avoid circular ref)
   if (import.meta.env.DEV) {
+    const finalSnapshot = JSON.parse(JSON.stringify(enforcement.plan)) as PlanData;
     (enforcement.plan as any).__debugInfo = {
       rawPlan: basePlan,
-      finalPlan: enforcement.plan,
+      finalPlan: finalSnapshot,
       pantryInputs: userPantryListEarly,
       pantryUsageBeforeEnforcement: enforcement.pantryUsageBefore,
       pantryUsageAfterEnforcement: enforcement.pantryUsageAfter,
       excessMovedToGrocery: enforcement.excessMoved,
       validation: {
-        schemaValid: true, // passed validatePlanData
+        schemaValid: true,
         pantryCapped: enforcement.excessMoved.length === 0 || Object.keys(enforcement.pantryUsageAfter).length >= 0,
         metricsRecomputed: true,
       },
@@ -1985,4 +1986,5 @@ export function generatePlan(inputs?: FormInputs): PlanData {
   }
 
   return enforcement.plan;
+}
 }
