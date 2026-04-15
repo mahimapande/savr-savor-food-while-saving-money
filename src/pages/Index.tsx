@@ -420,8 +420,15 @@ const Index = () => {
             </RadioGroup>
           </div>
 
-          <Button type="submit" className="w-full text-base py-6">
-            Generate plan
+          <Button type="submit" className="w-full text-base py-6" disabled={isGenerating}>
+            {isGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Generating your plan…
+              </>
+            ) : (
+              "Generate plan"
+            )}
           </Button>
         </form>
       </div>
