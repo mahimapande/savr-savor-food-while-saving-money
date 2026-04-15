@@ -111,6 +111,15 @@ const Plan = () => {
   }, [location.state]);
 
   const plan = useMemo<PlanData>(() => {
+    // If we arrived with fresh form inputs (via location.state), always regenerate
+    if (location.state) {
+      const generated = generatePlan(formInputs);
+      // Store without __debugInfo to avoid bloating localStorage
+      const { __debugInfo, ...storable } = generated as any;
+      localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(storable));
+      return generated;
+    }
+
     const stored = localStorage.getItem(WEEKLY_PLAN_KEY);
     if (stored) {
       try {
@@ -121,9 +130,10 @@ const Plan = () => {
     }
 
     const generated = generatePlan(formInputs);
-    localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(generated));
+    const { __debugInfo, ...storable } = generated as any;
+    localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(storable));
     return generated;
-  }, [formInputs]);
+  }, [formInputs, location.state]);
 
   const debugInfo = useMemo<PlanDebugInfo | null>(() => {
     if (!import.meta.env.DEV) return null;
