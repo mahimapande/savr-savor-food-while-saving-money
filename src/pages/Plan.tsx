@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem, MealType, PlanDebugInfo } from "@/data/mockData";
-import { getShowDebugTools, setShowDebugTools } from "@/hooks/use-dev-settings";
+import { getShowDebugTools } from "@/hooks/use-dev-settings";
 
 const PlanDebugPanel = import.meta.env.DEV
   ? lazy(() => import("@/components/PlanDebugPanel"))
@@ -11,9 +11,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ChefHat, DollarSign, ShoppingCart, Clock, ChevronRight, Package, ArrowRight, ArrowLeft, PiggyBank, Check, Sun, Coffee, UtensilsCrossed, Cookie, Wallet, RefreshCw, AlertTriangle, Bug } from "lucide-react";
+import { ChefHat, DollarSign, ShoppingCart, Clock, ChevronRight, Package, ArrowRight, ArrowLeft, PiggyBank, Check, Sun, Coffee, UtensilsCrossed, Cookie, Wallet, RefreshCw, AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Switch } from "@/components/ui/switch";
 
 const HAVE_STORAGE_KEY = "savr-have-items";
 const WEEKLY_PLAN_KEY = "weeklyPlan";
@@ -142,12 +141,7 @@ const Plan = () => {
     return (plan as any).__debugInfo ?? null;
   }, [plan]);
 
-  const [showDebugTools, setShowDebugToolsState] = useState(() => getShowDebugTools());
-  const toggleDebugTools = useCallback((checked: boolean) => {
-    setShowDebugToolsState(checked);
-    setShowDebugTools(checked);
-  }, []);
-  const showDebugPanel = import.meta.env.DEV && showDebugTools && !!debugInfo;
+  const showDebugPanel = import.meta.env.DEV && getShowDebugTools() && !!debugInfo;
 
   const [cookedMeals, setCookedMeals] = useState<Set<string>>(() => {
     try {
@@ -320,23 +314,12 @@ const Plan = () => {
           </div>
         )}
 
-        {/* Dev-only debug toggle & panel */}
-        {import.meta.env.DEV && PlanDebugPanel && (
-          <div className="mb-6 space-y-2">
-            <div className="flex items-center gap-3 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-4 py-2.5">
-              <Bug className="h-4 w-4 text-muted-foreground shrink-0" />
-              <label htmlFor="debug-toggle" className="flex-1 cursor-pointer">
-                <span className="text-sm font-medium text-foreground">Show debug tools</span>
-                <Badge variant="outline" className="ml-2 text-[10px] font-mono border-muted-foreground/40 text-muted-foreground">Dev</Badge>
-                <p className="text-xs text-muted-foreground mt-0.5">Shows temporary developer diagnostics on the plan page.</p>
-              </label>
-              <Switch id="debug-toggle" checked={showDebugTools} onCheckedChange={toggleDebugTools} />
-            </div>
-            {showDebugPanel && (
-              <Suspense fallback={null}>
-                <PlanDebugPanel debug={debugInfo!} />
-              </Suspense>
-            )}
+        {/* Dev-only debug panel (toggle lives in Settings) */}
+        {PlanDebugPanel && showDebugPanel && (
+          <div className="mb-6">
+            <Suspense fallback={null}>
+              <PlanDebugPanel debug={debugInfo!} />
+            </Suspense>
           </div>
         )}
 
