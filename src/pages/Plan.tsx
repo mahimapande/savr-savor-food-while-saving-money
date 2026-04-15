@@ -320,12 +320,23 @@ const Plan = () => {
           </div>
         )}
 
-        {/* Dev-only debug panel */}
-        {PlanDebugPanel && debugInfo && (
-          <div className="mb-6">
-            <Suspense fallback={null}>
-              <PlanDebugPanel debug={debugInfo} />
-            </Suspense>
+        {/* Dev-only debug toggle & panel */}
+        {import.meta.env.DEV && PlanDebugPanel && (
+          <div className="mb-6 space-y-2">
+            <div className="flex items-center gap-3 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-4 py-2.5">
+              <Bug className="h-4 w-4 text-muted-foreground shrink-0" />
+              <label htmlFor="debug-toggle" className="flex-1 cursor-pointer">
+                <span className="text-sm font-medium text-foreground">Show debug tools</span>
+                <Badge variant="outline" className="ml-2 text-[10px] font-mono border-muted-foreground/40 text-muted-foreground">Dev</Badge>
+                <p className="text-xs text-muted-foreground mt-0.5">Shows temporary developer diagnostics on the plan page.</p>
+              </label>
+              <Switch id="debug-toggle" checked={showDebugTools} onCheckedChange={toggleDebugTools} />
+            </div>
+            {showDebugPanel && (
+              <Suspense fallback={null}>
+                <PlanDebugPanel debug={debugInfo!} />
+              </Suspense>
+            )}
           </div>
         )}
 
