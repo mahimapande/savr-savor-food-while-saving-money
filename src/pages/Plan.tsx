@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { generatePlan, FormInputs, PlanData, ShoppingListItem, categorizeItem, MealType, PlanDebugInfo } from "@/data/mockData";
+import { getShowDebugTools, setShowDebugTools } from "@/hooks/use-dev-settings";
 
 const PlanDebugPanel = import.meta.env.DEV
   ? lazy(() => import("@/components/PlanDebugPanel"))
