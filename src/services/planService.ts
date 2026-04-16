@@ -168,29 +168,92 @@ export interface GeneratePlanResult {
   plan: PlanData;
   source: "ai" | "local";
   error?: string;
+  /** Schedule-coverage info for telemetry / UI. */
+  coverage?: {
+    requested: number;
+    filled: number;
+    retried: boolean;
+    underFilled: boolean;
+  };
+  /**
+   * When the model under-fills both initial and retry attempts, this flag is
+   * set so the UI can show a friendly error instead of a partial plan.
+   */
+  scheduleCoverageFailed?: boolean;
+}
+
+function totalRequestedSlots(inputs: FormInputs): number {
+  const mc = inputs.mealCounts || { breakfast: 0, lunch: 0, dinner: 0, snack: 0 };
+  return (mc.breakfast || 0) + (mc.lunch || 0) + (mc.dinner || 0) + (mc.snack || 0);
+}
+
+/**
+ * Invoke the edge function once. `allowRetry` defaults to true server-side; we
+ * pass it through so the client can opt out (e.g. in unit tests or for a
+ * second-pass attempt orchestrated client-side).
+ */
+async function invokeGeneratePlan(
+  inputs: FormInputs,
+  allowRetry: boolean
+): Promise<{ rawMeals: any[]; meta: { requestedSlots: number; filledSlots: number; retried: boolean } }> {
+  const { data, error } = await supabase.functions.invoke("generate-plan", {
+    body: { inputs, allowRetry },
+  });
+
+  if (error) {
+    console.error("Edge function error:", error);
+    throw new Error(error.message || "Edge function call failed");
+  }
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+  if (!data?.plan?.meals || !Array.isArray(data.plan.meals)) {
+    throw new Error("AI returned invalid meal plan");
+  }
+
+  const requestedSlots = data.meta?.requestedSlots ?? totalRequestedSlots(inputs);
+  const filledSlots = data.meta?.filledSlots ?? data.plan.meals.length;
+  const retried = data.meta?.retried ?? false;
+
+  return {
+    rawMeals: data.plan.meals,
+    meta: { requestedSlots, filledSlots, retried },
+  };
 }
 
 export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePlanResult> {
+  const requestedSlots = totalRequestedSlots(inputs);
+
   try {
-    const { data, error } = await supabase.functions.invoke("generate-plan", {
-      body: { inputs },
-    });
+    // First call — server may auto-retry once on under-fill.
+    let { rawMeals, meta } = await invokeGeneratePlan(inputs, true);
 
-    if (error) {
-      console.error("Edge function error:", error);
-      throw new Error(error.message || "Edge function call failed");
+    // Defensive client-side retry: if the server didn't retry (older deploy or
+    // older response shape) and we're still short, ask once more explicitly.
+    if (
+      requestedSlots > 0 &&
+      rawMeals.length < requestedSlots &&
+      !meta.retried
+    ) {
+      console.warn(
+        `Server returned ${rawMeals.length}/${requestedSlots} without retrying. ` +
+        `Issuing a client-side retry...`
+      );
+      const second = await invokeGeneratePlan(inputs, true);
+      rawMeals = second.rawMeals;
+      meta = { ...second.meta, retried: true };
     }
 
-    if (data?.error) {
-      throw new Error(data.error);
-    }
+    const filledSlots = rawMeals.length;
+    const underFilled = requestedSlots > 0 && filledSlots < requestedSlots;
+    const coverage = { requested: requestedSlots, filled: filledSlots, retried: meta.retried, underFilled };
 
-    if (!data?.plan?.meals || !Array.isArray(data.plan.meals) || data.plan.meals.length === 0) {
-      throw new Error("AI returned empty or invalid meal plan");
+    if (rawMeals.length === 0) {
+      throw new Error("AI returned empty meal plan");
     }
 
     // Convert raw LLM response to PlanData
-    const rawPlanData = llmResponseToPlanData(data.plan.meals, inputs);
+    const rawPlanData = llmResponseToPlanData(rawMeals, inputs);
 
     // Validate/sanitize
     const validatedPlan = validatePlanData(rawPlanData);
@@ -205,8 +268,19 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
       allergies: inputs.allergies || [],
       selectedCuisines: inputs.cuisines || [],
     });
-    if (!invariants.ok) {
-      console.warn("Plan invariant violations:", invariants.violations);
+
+    // Augment invariants with schedule-coverage violation if applicable.
+    const allViolations = [...invariants.violations];
+    if (underFilled) {
+      allViolations.push({
+        code: "schedule-coverage" as any,
+        message: `Schedule under-filled after retry: ${filledSlots}/${requestedSlots} meals`,
+        details: { filled: filledSlots, requested: requestedSlots, retried: meta.retried } as any,
+      });
+    }
+
+    if (allViolations.length > 0) {
+      console.warn("Plan invariant violations:", allViolations);
     }
 
     // Attach debug info in dev mode
@@ -234,13 +308,24 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
             enforcement.excessMoved.length === 0 ||
             Object.keys(enforcement.pantryUsageAfter).length >= 0,
           metricsRecomputed: true,
-          invariantsOk: invariants.ok,
-          invariantViolations: invariants.violations.map(v => ({ code: v.code, message: v.message })),
+          invariantsOk: !underFilled && invariants.ok,
+          invariantViolations: allViolations.map(v => ({ code: v.code, message: v.message })),
         },
       } satisfies PlanDebugInfo;
     }
 
-    return { plan: enforcement.plan, source: "ai" };
+    // If the schedule is still under-filled after retry, mark plan invalid for UI.
+    if (underFilled) {
+      return {
+        plan: enforcement.plan,
+        source: "ai",
+        coverage,
+        scheduleCoverageFailed: true,
+        error: `We had trouble filling all your slots (${filledSlots}/${requestedSlots}). Please try again.`,
+      };
+    }
+
+    return { plan: enforcement.plan, source: "ai", coverage };
   } catch (err) {
     console.warn("AI plan generation failed, falling back to local:", err);
     const localPlan = generateLocalPlan(inputs);

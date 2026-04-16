@@ -165,6 +165,17 @@ const Index = () => {
     try {
       const result = await generatePlanFromAI(inputs);
 
+      // Schedule-coverage failure: show friendly error and STAY on the form so
+      // the user can try again. Do not silently render a partial plan.
+      if (result.scheduleCoverageFailed) {
+        toast({
+          title: "We had trouble filling all your slots",
+          description: "Please try again — the planner couldn't fill every meal.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Store without __debugInfo to avoid bloating localStorage
       const { __debugInfo, ...storable } = result.plan as any;
       localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(storable));
