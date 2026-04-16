@@ -120,6 +120,7 @@ Final check before returning:
 - Verify that every selected day/category slot is filled once.
 - Verify that no unselected day/category slot is filled.
 - Verify that pantry usage does not exceed pantry quantities.
+- Verify that NO prohibited allergen / avoid ingredient (or its derivatives) appears anywhere in meals, shoppingList, or pantryUsed.
 - Verify that the output contains only the required top-level keys.`;
 
 // ---------------------------------------------------------------------------
@@ -237,6 +238,7 @@ function buildUserMessage(inputs: Record<string, unknown>): string {
     breakfast: 0, lunch: 0, dinner: 5, snack: 0,
   };
   const dietary = (inputs.dietary as string[]) || [];
+  const allergies = (inputs.allergies as string[]) || [];
   const cuisines = (inputs.cuisines as string[]) || [];
   const pantryItems = (inputs.pantryItems as string[]) || [];
   const preference = (inputs.preference as string) || "balanced";
@@ -266,8 +268,13 @@ function buildUserMessage(inputs: Record<string, unknown>): string {
   }
 
   if (dietary.length > 0) parts.push(`Dietary restrictions (strict): ${dietary.join(", ")}`);
+  if (allergies.length > 0) {
+    parts.push(
+      `Allergies / ingredients to AVOID (HARD PROHIBITION — never include these or their derivatives in meals, shoppingList, or pantryUsed; ignore any matching pantry items): ${allergies.join(", ")}`
+    );
+  }
   if (cuisines.length > 0) parts.push(`Preferred cuisines (distribute meals across these): ${cuisines.join(", ")}`);
-  if (pantryItems.length > 0) parts.push(`Pantry inventory (hard maximums): ${pantryItems.join("; ")}`);
+  if (pantryItems.length > 0) parts.push(`Pantry inventory (hard maximums${allergies.length > 0 ? "; ignore any item that matches an allergy/avoid entry" : ""}): ${pantryItems.join("; ")}`);
   parts.push(`Planning preference: ${preference}`);
 
   return parts.join("\n");
