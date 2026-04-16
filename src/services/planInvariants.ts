@@ -107,13 +107,23 @@ export function assertPlanInvariants(
     }
   }
   for (const [name, total] of Object.entries(aggregate)) {
-    const cap = effectiveCaps[name];
+    // Try direct match, then singular↔plural fallback (pantry parser may keep "eggs"
+    // while ingredients normalize to "egg").
+    let cap = effectiveCaps[name];
+    let capKey = name;
+    if (!cap) {
+      const alt = name.endsWith("s") ? name.slice(0, -1) : `${name}s`;
+      if (effectiveCaps[alt]) {
+        cap = effectiveCaps[alt];
+        capKey = alt;
+      }
+    }
     if (!cap) continue; // unknown pantry item — handled by enforcePantryLimits elsewhere
     if (total > cap.cap + 1e-6) {
       violations.push({
         code: cap.usedDefault ? "pantry-no-qty-default-exceeded" : "pantry-cap-exceeded",
         message: `Pantry cap exceeded for "${name}": used ${total}, cap ${cap.cap} ${cap.unit}${cap.usedDefault ? " (default)" : ""}`,
-        details: { ingredient: name, used: total, cap: cap.cap, unit: cap.unit, default: cap.usedDefault },
+        details: { ingredient: name, capKey, used: total, cap: cap.cap, unit: cap.unit, default: cap.usedDefault },
       });
     }
   }
