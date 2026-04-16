@@ -51,6 +51,16 @@ export interface PlanDebugInfo {
   rawPlan: PlanData;
   finalPlan: PlanData;
   pantryInputs: string[];
+  /** Snapshot of user-facing inputs sent to the AI (for the debug input summary). */
+  inputsSummary?: {
+    budget?: string;
+    dietary: string[];
+    allergies: string[];
+    cuisines: string[];
+    pantryItems: string[];
+    preference?: string;
+    mealCounts?: { breakfast: number; lunch: number; dinner: number; snack: number };
+  };
   pantryUsageBeforeEnforcement: Record<string, { totalQty: number; unit: string }>;
   pantryUsageAfterEnforcement: Record<string, { usedQty: number; unit: string }>;
   excessMovedToGrocery: { name: string; qty: number; unit: string }[];
