@@ -61,6 +61,8 @@ const Index = () => {
     });
   };
   const [dietary, setDietary] = useState<string[]>([]);
+  const [allergies, setAllergies] = useState<string[]>([]);
+  const [customAllergy, setCustomAllergy] = useState("");
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [customCuisine, setCustomCuisine] = useState("");
   // pantryChecked tracks which items are toggled on; pantryAmounts stores the user-typed quantity string

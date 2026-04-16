@@ -103,6 +103,8 @@ export interface FormInputs {
   dietary: string[];
   cuisines: string[];
   pantryItems: string[];
+  /** Hard-prohibited allergens/ingredients to avoid (e.g. ["peanuts","tree nuts","custom: cilantro"]). Separate from dietary needs. */
+  allergies?: string[];
   preference: string;
   mealCounts?: {
     breakfast: number;
