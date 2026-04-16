@@ -7,6 +7,12 @@ const corsHeaders = {
 };
 
 // ---------------------------------------------------------------------------
+// Runtime model — OpenAI gpt-4o-mini (uses OPENAI_API_KEY secret)
+// ---------------------------------------------------------------------------
+const OPENAI_MODEL = "gpt-4o-mini";
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+
+// ---------------------------------------------------------------------------
 // System prompt – the finalized Savr meal-planning prompt
 // ---------------------------------------------------------------------------
 const SYSTEM_PROMPT = `You are Savr, an expert budget-conscious meal-planning assistant.
@@ -32,7 +38,7 @@ OUTPUT
 Return ONLY the structured meal plan via the provided tool/function call. Do not add commentary.`;
 
 // ---------------------------------------------------------------------------
-// Structured output schema via tool calling
+// Structured output schema via tool calling (OpenAI function calling)
 // ---------------------------------------------------------------------------
 const PLAN_TOOL = {
   type: "function" as const,
@@ -114,19 +120,10 @@ function buildUserMessage(inputs: Record<string, unknown>): string {
     `Meals requested: ${JSON.stringify(mealCounts)}`,
   ];
 
-  if (mealDays) {
-    parts.push(`Meal days: ${JSON.stringify(mealDays)}`);
-  }
-
-  if (dietary.length > 0) {
-    parts.push(`Dietary restrictions: ${dietary.join(", ")}`);
-  }
-  if (cuisines.length > 0) {
-    parts.push(`Preferred cuisines: ${cuisines.join(", ")}`);
-  }
-  if (pantryItems.length > 0) {
-    parts.push(`Pantry inventory: ${pantryItems.join("; ")}`);
-  }
+  if (mealDays) parts.push(`Meal days: ${JSON.stringify(mealDays)}`);
+  if (dietary.length > 0) parts.push(`Dietary restrictions: ${dietary.join(", ")}`);
+  if (cuisines.length > 0) parts.push(`Preferred cuisines: ${cuisines.join(", ")}`);
+  if (pantryItems.length > 0) parts.push(`Pantry inventory: ${pantryItems.join("; ")}`);
   parts.push(`Preference: ${preference}`);
 
   return parts.join("\n");
@@ -141,66 +138,61 @@ serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY is not configured");
     }
 
     const body = await req.json();
     const inputs = body.inputs || {};
     const userMessage = buildUserMessage(inputs);
 
-    console.log("Calling AI gateway for meal plan generation...");
+    console.log(`Calling OpenAI ${OPENAI_MODEL} for meal plan generation...`);
 
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: userMessage },
-          ],
-          tools: [PLAN_TOOL],
-          tool_choice: { type: "function", function: { name: "return_meal_plan" } },
-        }),
-      }
-    );
+    const response = await fetch(OPENAI_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
+        ],
+        tools: [PLAN_TOOL],
+        tool_choice: { type: "function", function: { name: "return_meal_plan" } },
+      }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("OpenAI error:", response.status, errorText);
 
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
+          JSON.stringify({ error: "OpenAI rate limit exceeded. Please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
+      if (response.status === 401) {
         return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add funds in Settings > Workspace > Usage." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: "Invalid OpenAI API key. Please check the OPENAI_API_KEY secret." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       return new Response(
-        JSON.stringify({ error: `AI gateway error (${response.status})` }),
+        JSON.stringify({ error: `OpenAI error (${response.status})` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const result = await response.json();
-
-    // Extract structured output from tool call
     const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+
     if (!toolCall || toolCall.function.name !== "return_meal_plan") {
-      // Fallback: try to parse content as JSON
       const content = result.choices?.[0]?.message?.content;
       if (content) {
         try {
@@ -209,17 +201,17 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         } catch {
-          console.error("Could not parse AI response as JSON");
+          console.error("Could not parse OpenAI response as JSON");
         }
       }
       return new Response(
-        JSON.stringify({ error: "AI did not return structured plan data" }),
+        JSON.stringify({ error: "OpenAI did not return structured plan data" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const planData = JSON.parse(toolCall.function.arguments);
-    console.log(`AI returned ${planData.meals?.length || 0} meals`);
+    console.log(`OpenAI returned ${planData.meals?.length || 0} meals`);
 
     return new Response(JSON.stringify({ plan: planData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
