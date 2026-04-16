@@ -150,6 +150,7 @@ const Index = () => {
       budget,
       meals: String(totalMeals),
       dietary,
+      allergies,
       cuisines,
       pantryItems: buildPantryItems(),
       preference,
