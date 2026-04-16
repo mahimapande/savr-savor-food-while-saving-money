@@ -62,6 +62,45 @@ const PlanDebugPanel = ({ debug }: Props) => {
       </CollapsibleTrigger>
       <CollapsibleContent>
         <Card className="mt-2 border-dashed border-muted-foreground/30 bg-muted/20 p-4">
+          {/* Inputs summary */}
+          {debug.inputsSummary && (
+            <div className="mb-4 space-y-1.5 rounded-md border border-muted-foreground/20 bg-background/40 p-3 text-xs font-mono">
+              <div className="mb-1 font-semibold text-foreground">Inputs sent to AI</div>
+              <SummaryRow label="Budget" value={debug.inputsSummary.budget ? `$${debug.inputsSummary.budget}` : "—"} />
+              <SummaryRow
+                label="Meal counts"
+                value={
+                  debug.inputsSummary.mealCounts
+                    ? Object.entries(debug.inputsSummary.mealCounts)
+                        .filter(([, n]) => n > 0)
+                        .map(([k, n]) => `${k}:${n}`)
+                        .join(", ") || "—"
+                    : "—"
+                }
+              />
+              <SummaryRow label="Dietary" value={debug.inputsSummary.dietary.join(", ") || "—"} />
+              <div className="flex gap-2">
+                <span className="w-28 shrink-0 text-muted-foreground">Allergies:</span>
+                <span className="flex-1">
+                  {debug.inputsSummary.allergies.length === 0 ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    <span className="flex flex-wrap gap-1">
+                      {debug.inputsSummary.allergies.map((a) => (
+                        <Badge key={a} variant="destructive" className="px-1.5 py-0 text-[10px] font-mono">
+                          {a}
+                        </Badge>
+                      ))}
+                    </span>
+                  )}
+                </span>
+              </div>
+              <SummaryRow label="Cuisines" value={debug.inputsSummary.cuisines.join(", ") || "—"} />
+              <SummaryRow label="Pantry" value={debug.inputsSummary.pantryItems.join("; ") || "—"} />
+              <SummaryRow label="Preference" value={debug.inputsSummary.preference || "—"} />
+            </div>
+          )}
+
           {/* Validation badges */}
           <div className="mb-4 flex flex-wrap gap-2">
             <ValidationBadge label="Schema valid" ok={validation.schemaValid} />
@@ -167,6 +206,15 @@ const PlanDebugPanel = ({ debug }: Props) => {
     </Collapsible>
   );
 };
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-2">
+      <span className="w-28 shrink-0 text-muted-foreground">{label}:</span>
+      <span className="flex-1 break-words text-foreground">{value}</span>
+    </div>
+  );
+}
 
 function ValidationBadge({ label, ok }: { label: string; ok: boolean }) {
   return (
