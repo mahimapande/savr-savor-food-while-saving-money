@@ -180,11 +180,27 @@ export function assertPlanInvariants(
     }
   }
   if (activeKeywords.length > 0) {
+    const isAllowedNonDairy = (lower: string): boolean => {
+      for (const phrase of ALLOWED_NON_DAIRY) {
+        if (lower.includes(phrase)) return true;
+      }
+      return false;
+    };
+    const matchesKeyword = (lower: string, keyword: string): boolean => {
+      // For keywords prone to false positives, require word-boundary match.
+      if (DAIRY_WORD_BOUNDARY_KEYWORDS.has(keyword)) {
+        const re = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+        return re.test(lower);
+      }
+      return lower.includes(keyword);
+    };
     const scan = (label: string, source: "meal" | "shoppingList" | "pantryItems") => {
       const lower = label.toLowerCase();
+      const allowedNonDairy = isAllowedNonDairy(lower);
       for (const { allergy, keyword } of activeKeywords) {
-        // Word-boundary-ish check to avoid false positives like "creamer" → "cream"? we accept that.
-        if (lower.includes(keyword)) {
+        // Suppress dairy false positives for known plant-based / non-dairy phrases.
+        if (allergy.toLowerCase().trim() === "dairy" && allowedNonDairy) continue;
+        if (matchesKeyword(lower, keyword)) {
           violations.push({
             code: "allergy-derivative-detected",
             message: `Prohibited derivative for allergy "${allergy}" found in ${source}: "${label}" matches "${keyword}"`,
