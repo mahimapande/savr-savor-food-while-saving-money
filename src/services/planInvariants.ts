@@ -232,19 +232,27 @@ export function assertPlanInvariants(
     }
   }
 
-  // (d) Cuisine label normalization — map model output back to allowed set.
-  const allowedLower: Record<string, string> = {};
-  for (const c of ALLOWED_CUISINES) allowedLower[c.toLowerCase()] = c;
-  // Also include user-selected labels in case they exceed the static set.
+  // (d) Cuisine label normalization — prefer user-selected casing as canonical,
+  //     fall back to the static ALLOWED_CUISINES set.
+  const canonicalLower: Record<string, string> = {};
+  // User-selected first so they win for casing.
   for (const c of inputs.selectedCuisines) {
-    if (c) allowedLower[c.toLowerCase()] = c;
+    if (c) canonicalLower[c.toLowerCase().trim()] = c;
+  }
+  for (const c of ALLOWED_CUISINES) {
+    const key = c.toLowerCase();
+    if (!canonicalLower[key]) canonicalLower[key] = c;
   }
 
+  const hasSelectedCuisines = inputs.selectedCuisines.some(c => c && c.trim().length > 0);
+  const fallbackCuisine = inputs.selectedCuisines.find(c => c && c.trim().length > 0) ?? null;
+  const unknownCuisineTags: { meal: string; tag: string }[] = [];
+
   for (const meal of plan.meals) {
-    if (!Array.isArray(meal.cuisineTags)) continue;
+    if (!Array.isArray(meal.cuisineTags)) meal.cuisineTags = [];
     const normalized: string[] = [];
     for (const tag of meal.cuisineTags) {
-      const canonical = allowedLower[String(tag).toLowerCase().trim()];
+      const canonical = canonicalLower[String(tag).toLowerCase().trim()];
       if (canonical) {
         normalized.push(canonical);
       } else {
@@ -253,8 +261,18 @@ export function assertPlanInvariants(
           message: `Unknown cuisine label "${tag}" on meal "${meal.name}"`,
           details: { meal: meal.name, tag },
         });
+        unknownCuisineTags.push({ meal: meal.name, tag: String(tag) });
         normalized.push(tag); // keep original to avoid data loss
       }
+    }
+    // Empty-tag handling: flag + auto-fill with first selected cuisine.
+    if (normalized.length === 0 && hasSelectedCuisines && fallbackCuisine) {
+      violations.push({
+        code: "cuisine-tag-empty",
+        message: `Meal "${meal.name}" had no cuisineTags despite selected cuisines; defaulted to "${fallbackCuisine}"`,
+        details: { meal: meal.name, fallback: fallbackCuisine },
+      });
+      normalized.push(fallbackCuisine);
     }
     meal.cuisineTags = normalized;
   }
@@ -263,5 +281,6 @@ export function assertPlanInvariants(
     ok: violations.length === 0,
     violations,
     effectivePantryCaps: effectiveCaps,
+    unknownCuisineTags,
   };
 }
