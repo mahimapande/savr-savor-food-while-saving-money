@@ -106,7 +106,24 @@ const PlanDebugPanel = ({ debug }: Props) => {
             <ValidationBadge label="Schema valid" ok={validation.schemaValid} />
             <ValidationBadge label="Pantry capped" ok={validation.pantryCapped} />
             <ValidationBadge label="Metrics recomputed" ok={validation.metricsRecomputed} />
+            {validation.invariantsOk !== undefined && (
+              <ValidationBadge label="Invariants" ok={validation.invariantsOk} />
+            )}
           </div>
+
+          {/* Invariant violations list */}
+          {validation.invariantViolations && validation.invariantViolations.length > 0 && (
+            <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs font-mono">
+              <div className="mb-1 font-semibold text-destructive">Invariant violations</div>
+              <ul className="space-y-1">
+                {validation.invariantViolations.map((v, i) => (
+                  <li key={i} className="text-destructive">
+                    <span className="font-semibold">[{v.code}]</span> {v.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <Tabs defaultValue="overview" className="w-full">
             <TabsList className="w-full grid grid-cols-3">
