@@ -14,6 +14,45 @@ import { parseIngredient } from "@/data/priceMap";
 // Default finite cap when a pantry entry has no explicit quantity (e.g. "olive oil").
 export const DEFAULT_PANTRY_CAP = 2;
 
+// Phrases that contain a dairy-keyword substring but are NOT dairy.
+// Used to suppress false positives in the dairy derivative scan.
+export const ALLOWED_NON_DAIRY: string[] = [
+  "coconut milk",
+  "coconut cream",
+  "coconut yogurt",
+  "coconut yoghurt",
+  "coconut butter",
+  "almond milk",
+  "almond butter",
+  "soy milk",
+  "oat milk",
+  "rice milk",
+  "cashew milk",
+  "cashew cream",
+  "hemp milk",
+  "flax milk",
+  "pea milk",
+  "nut milk",
+  "peanut butter", // not dairy (separate prohibition handled elsewhere)
+  "cocoa butter",
+  "shea butter",
+  "apple butter",
+  "nut butter",
+  "seed butter",
+  "sunflower butter",
+  "buttercup",
+  "butternut",
+  "butterhead",
+  "buttercream", // contains "cream" — usually dairy, but only matched as substring; explicit if user means dairy butter we keep flagged via "butter" elsewhere
+];
+
+// Keywords that are dairy-derivative AND prone to false positives in compound names.
+// We require these to be matched as standalone words (with word boundaries),
+// not as substrings inside longer phrases.
+const DAIRY_WORD_BOUNDARY_KEYWORDS = new Set([
+  "milk", "butter", "cream", "cheese", "yogurt", "yoghurt", "whey", "casein", "ghee", "lactose",
+]);
+
 // Allergy → derivative keyword map (lowercase substrings).
 export const ALLERGY_DERIVATIVES: Record<string, string[]> = {
   peanuts: ["peanut", "groundnut"],
