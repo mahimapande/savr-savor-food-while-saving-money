@@ -313,7 +313,79 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Cuisines */}
+          {/* Allergies / ingredients to avoid */}
+          <div className="space-y-3">
+            <Label>Allergies / ingredients to avoid</Label>
+            <p className="text-xs text-muted-foreground">
+              Hard exclusions — these will never appear in your meals, shopping list, or pantry usage.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {COMMON_ALLERGENS.map((a) => (
+                <Badge
+                  key={a}
+                  variant={allergies.includes(a) ? "destructive" : "outline"}
+                  className="cursor-pointer select-none px-3 py-1.5 text-sm transition-colors"
+                  onClick={() =>
+                    setAllergies((prev) =>
+                      prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]
+                    )
+                  }
+                >
+                  {a}
+                </Badge>
+              ))}
+            </div>
+            {allergies.filter((a) => !COMMON_ALLERGENS.includes(a)).length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {allergies
+                  .filter((a) => !COMMON_ALLERGENS.includes(a))
+                  .map((a) => (
+                    <Badge
+                      key={a}
+                      variant="destructive"
+                      className="cursor-pointer select-none px-3 py-1.5 text-sm"
+                      onClick={() => setAllergies((prev) => prev.filter((x) => x !== a))}
+                    >
+                      {a}
+                      <X className="ml-1 h-3 w-3" />
+                    </Badge>
+                  ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add other ingredient to avoid (e.g. cilantro)"
+                value={customAllergy}
+                onChange={(e) => setCustomAllergy(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const v = customAllergy.trim();
+                    if (v && !allergies.some((a) => a.toLowerCase() === v.toLowerCase())) {
+                      setAllergies((prev) => [...prev, v]);
+                      setCustomAllergy("");
+                    }
+                  }
+                }}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const v = customAllergy.trim();
+                  if (v && !allergies.some((a) => a.toLowerCase() === v.toLowerCase())) {
+                    setAllergies((prev) => [...prev, v]);
+                    setCustomAllergy("");
+                  }
+                }}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
           <div className="space-y-3">
             <Label>Cuisine of choice (select 2–3)</Label>
             <div className="flex flex-wrap gap-2">
