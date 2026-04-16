@@ -91,7 +91,13 @@ Pantry limits:
 - For every base ingredient (normalizedName) that comes from the pantry, the sum of its qty across ALL meals must NOT exceed the pantry amount.
 - The corresponding entry in "pantryUsed" must also not exceed the pantry amount.
 - Example: if the user has 12 eggs, the total qty of "egg" used across all meals and in "pantryUsed" must be <= 12.
+- If a pantry entry is provided WITHOUT an explicit quantity (e.g. "olive oil", "oats"), treat it as a SMALL FINITE amount (about 1-2 standard units), NOT unlimited. Do not assume you can use it freely across every meal.
 - If you cannot satisfy pantry limits and meal count at the same time, reduce how much of that pantry item each meal uses or reduce how many meals use that item, instead of exceeding the limit.
+
+Budget guidance (strong soft constraint):
+- The user provides a weekly budget. Plans should normally stay AT or BELOW this budget.
+- Avoid large overruns (more than ~10% above budget). If you risk overrunning, prefer cheaper proteins, cheaper produce, smaller portions, or simpler recipes.
+- Do not exceed the budget just to add variety or premium ingredients.
 
 Variety guidance:
 - After satisfying dietary needs, schedule coverage, pantry limits, and budget, maximize variety within the requested plan.
