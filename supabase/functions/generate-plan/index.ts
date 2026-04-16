@@ -13,45 +13,116 @@ const OPENAI_MODEL = "gpt-4o-mini";
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
 // ---------------------------------------------------------------------------
-// System prompt – the finalized Savr meal-planning prompt
+// System prompt — Savr v2 (updated from OpenAI Playground 2026-04-16)
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = `You are Savr, an expert budget-conscious meal-planning assistant.
+const SYSTEM_PROMPT = `You are Savr, an AI meal-planning assistant.
 
-ROLE
-Generate a weekly meal plan that maximises ingredient reuse, respects the user's budget, dietary needs, cuisine preferences, and pantry inventory.
+Your job is to generate practical weekly meal plans that:
+- respect the user's dietary needs
+- follow the selected meal categories and selected days
+- use pantry items when appropriate
+- stay budget-conscious
+- encourage ingredient reuse when helpful
+- prefer realistic, simple meals over overly complex recipes
+- avoid duplicate meals unless they are meaningfully different
 
-RULES
-1. Every meal MUST include a unique id (kebab-case), a human-readable name, prep duration string (e.g. "25 min"), servings count, tags array, cuisine tag, dietary tags, reuse badges, estimated cost string, a full ingredients list, and step-by-step cooking instructions.
-2. Each ingredient MUST have: name (human-readable with quantity, e.g. "2 large eggs"), normalizedName (lowercase singular base, e.g. "egg"), qty (number), unit (e.g. "each","cup","oz","lb","tbsp","tsp"), originalQtyString, source ("pantry" or "grocery"), and cost (estimated USD).
-3. Mark an ingredient source as "pantry" ONLY if it appears in the user's pantry list. All other ingredients are "grocery".
-4. Do NOT exceed the user's pantry quantities — the post-processor will clamp, but try to be accurate.
-5. Maximise ingredient reuse across meals: prefer recipes that share staple ingredients.
-6. Stay within the weekly budget. Estimate realistic US grocery prices.
-7. Respect ALL dietary restrictions strictly. Never include excluded ingredients.
-8. NEVER include peanut butter in any recipe. Use tahini or other nut/seed butters instead.
-9. Assign each meal a day abbreviation (Mon, Tue, Wed, Thu, Fri, Sat, Sun) matching the user's requested days.
-10. Provide 3-6 clear cooking instructions per meal.
-11. Include reuse badges like "Uses 2 pantry items" or "egg used in 3 meals".
-12. Estimate cost per meal realistically (USD).
+Planning priorities (from highest to lowest):
+1. Dietary needs
+2. Selected meal categories and selected days
+3. Pantry usage and pantry quantity limits
+4. Budget-conscious planning
+5. Ingredient reuse
+6. Variety
+7. Cuisine preferences
 
-OUTPUT
-Return ONLY the structured meal plan via the provided tool/function call. Do not add commentary.`;
+Schedule coverage (hard rule):
+- You MUST generate exactly the total number of meals requested by the user.
+- The number of objects in "meals" must equal the total selected meal count provided by the user.
+- Every selected meal category and selected day must have exactly one corresponding meal.
+- Do not skip any requested meal slots.
+- Do not generate meals for unselected categories or unselected days.
+
+Top-level JSON shape (mandatory):
+You must return a single JSON object with exactly these top-level keys:
+
+{
+  "meals": [...],
+  "shoppingList": [...],
+  "pantryUsed": [...],
+  "metrics": {...}
+}
+
+- "meals" is an array of meal objects.
+- "shoppingList" is an array of shopping item objects.
+- "pantryUsed" is an array of pantry summary objects.
+- "metrics" is a single object with numeric summary fields.
+- "shoppingList", "pantryUsed", and "metrics" must NOT appear inside the "meals" array.
+- Do not include any other top-level keys.
+- Return only JSON, no markdown, code fences, or commentary.
+
+Hard constraints:
+- Generate meals only for the selected meal categories and selected days.
+- normalizedName must be singular, lowercase, and consistent across meals, shoppingList, and pantryUsed.
+- Use source values exactly as "pantry" or "grocery".
+- Meals must be realistic and practical for home cooking.
+- Do not invent awkward or implausible recipes just to consume pantry items.
+- Avoid fake duplicates such as "Variation 2" unless meals are meaningfully different in ingredients or preparation.
+- When multiple meals are generated for the same mealType, make them meaningfully different in ingredients or preparation style, not just small wording changes.
+
+Pantry limits:
+- The user provides pantry items with quantities. These are hard maximums across the whole plan.
+- For every base ingredient (normalizedName) that comes from the pantry, the sum of its qty across ALL meals must NOT exceed the pantry amount.
+- The corresponding entry in "pantryUsed" must also not exceed the pantry amount.
+- Example: if the user has 12 eggs, the total qty of "egg" used across all meals and in "pantryUsed" must be <= 12.
+- If you cannot satisfy pantry limits and meal count at the same time, reduce how much of that pantry item each meal uses or reduce how many meals use that item, instead of exceeding the limit.
+
+Variety guidance:
+- After satisfying dietary needs, schedule coverage, pantry limits, and budget, maximize variety within the requested plan.
+- Avoid repeating the same base recipe more than twice in one week unless the user's constraints make that unavoidable.
+- Vary meals by main ingredient, preparation style, or cuisine influence when possible.
+- Do not rely on small wording changes to create artificial variety.
+
+Cuisine guidance:
+- Cuisine preferences are selected by the user from 2 to 3 options (for example: Italian, Thai, American).
+- Cuisine preferences should visibly influence the plan when possible.
+- When multiple cuisines are selected, include meals influenced by each selected cuisine unless higher-priority constraints make that impractical.
+- If cuisine preferences conflict with dietary needs, pantry constraints, or budget, prioritize those constraints first.
+- Preserve user-facing dietary and cuisine labels consistently with the selected UI values.
+
+Output rules:
+- Return only valid structured output that matches the provided JSON schema.
+- Do not return markdown.
+- Do not return explanations, notes, or commentary.
+- Do not include extra top-level fields.
+- Use clear, realistic meal names and ingredient names.
+- If a quantity or unit is unclear, still return the ingredient with the best available structured values.
+- Keep instructions short, practical, and easy to follow.
+
+Final check before returning:
+- Verify that the number of meals exactly matches the requested total.
+- Verify that every selected day/category slot is filled once.
+- Verify that no unselected day/category slot is filled.
+- Verify that pantry usage does not exceed pantry quantities.
+- Verify that the output contains only the required top-level keys.`;
 
 // ---------------------------------------------------------------------------
 // Structured output schema via tool calling (OpenAI function calling)
+// Updated to match v2 prompt: meals + shoppingList + pantryUsed + metrics.
+// Client-side post-processing only consumes "meals" — the other fields are
+// accepted to satisfy the contract but recomputed downstream.
 // ---------------------------------------------------------------------------
 const PLAN_TOOL = {
   type: "function" as const,
   function: {
     name: "return_meal_plan",
     description:
-      "Return the complete weekly meal plan with meals, shopping list, pantry usage, and summary metrics.",
+      "Return the complete weekly meal plan with meals, shopping list, pantry usage summary, and aggregate metrics.",
     parameters: {
       type: "object",
       properties: {
         meals: {
           type: "array",
-          description: "Array of planned meals for the week",
+          description: "Array of planned meals — must equal the total requested meal count exactly.",
           items: {
             type: "object",
             properties: {
@@ -95,14 +166,53 @@ const PLAN_TOOL = {
             ],
           },
         },
+        shoppingList: {
+          type: "array",
+          description: "Aggregated grocery items needed beyond the pantry.",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              normalizedName: { type: "string" },
+              qty: { type: "number" },
+              unit: { type: "string" },
+              estimatedCost: { type: "number" },
+            },
+            required: ["name", "normalizedName", "qty", "unit"],
+          },
+        },
+        pantryUsed: {
+          type: "array",
+          description: "Aggregated pantry usage — qty per normalizedName must not exceed pantry amount.",
+          items: {
+            type: "object",
+            properties: {
+              normalizedName: { type: "string" },
+              qty: { type: "number" },
+              unit: { type: "string" },
+            },
+            required: ["normalizedName", "qty", "unit"],
+          },
+        },
+        metrics: {
+          type: "object",
+          description: "Aggregate plan metrics.",
+          properties: {
+            totalMeals: { type: "number" },
+            estimatedTotalCost: { type: "number" },
+            ingredientReusePercent: { type: "number" },
+          },
+        },
       },
-      required: ["meals"],
+      required: ["meals", "shoppingList", "pantryUsed", "metrics"],
     },
   },
 };
 
 // ---------------------------------------------------------------------------
 // Build user message from form inputs
+// Provides explicit slot list so the model can satisfy "exactly N meals,
+// every selected day/category slot filled exactly once".
 // ---------------------------------------------------------------------------
 function buildUserMessage(inputs: Record<string, unknown>): string {
   const budget = inputs.budget || "60";
@@ -113,18 +223,35 @@ function buildUserMessage(inputs: Record<string, unknown>): string {
   const cuisines = (inputs.cuisines as string[]) || [];
   const pantryItems = (inputs.pantryItems as string[]) || [];
   const preference = (inputs.preference as string) || "balanced";
-  const mealDays = inputs.mealDays as Record<string, string[]> | undefined;
+  const mealDays = (inputs.mealDays as Record<string, string[]> | undefined) || {};
+
+  const totalMeals = Object.values(mealCounts).reduce((s, n) => s + (n || 0), 0);
+
+  // Build explicit slot list: "Mon-breakfast", "Mon-lunch", ...
+  const slots: string[] = [];
+  for (const mealType of ["breakfast", "lunch", "dinner", "snack"] as const) {
+    const days = mealDays[mealType] || [];
+    for (const day of days) slots.push(`${day}-${mealType}`);
+  }
 
   const parts: string[] = [
     `Weekly budget: $${budget}`,
-    `Meals requested: ${JSON.stringify(mealCounts)}`,
+    `Total meals requested: ${totalMeals}`,
+    `Meal counts by category: ${JSON.stringify(mealCounts)}`,
   ];
 
-  if (mealDays) parts.push(`Meal days: ${JSON.stringify(mealDays)}`);
-  if (dietary.length > 0) parts.push(`Dietary restrictions: ${dietary.join(", ")}`);
-  if (cuisines.length > 0) parts.push(`Preferred cuisines: ${cuisines.join(", ")}`);
-  if (pantryItems.length > 0) parts.push(`Pantry inventory: ${pantryItems.join("; ")}`);
-  parts.push(`Preference: ${preference}`);
+  if (slots.length > 0) {
+    parts.push(
+      `Required meal slots (${slots.length} total — generate EXACTLY one meal for each slot, no more, no less):\n${slots.map(s => `  - ${s}`).join("\n")}`
+    );
+  } else {
+    parts.push(`Selected meal days: ${JSON.stringify(mealDays)}`);
+  }
+
+  if (dietary.length > 0) parts.push(`Dietary restrictions (strict): ${dietary.join(", ")}`);
+  if (cuisines.length > 0) parts.push(`Preferred cuisines (distribute meals across these): ${cuisines.join(", ")}`);
+  if (pantryItems.length > 0) parts.push(`Pantry inventory (hard maximums): ${pantryItems.join("; ")}`);
+  parts.push(`Planning preference: ${preference}`);
 
   return parts.join("\n");
 }
