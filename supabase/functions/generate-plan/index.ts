@@ -69,6 +69,23 @@ Hard constraints:
 - Avoid fake duplicates such as "Variation 2" unless meals are meaningfully different in ingredients or preparation.
 - When multiple meals are generated for the same mealType, make them meaningfully different in ingredients or preparation style, not just small wording changes.
 
+Allergies / ingredients to avoid (HARD PROHIBITION — highest priority, above all other rules):
+- The user may provide a list of allergens or ingredients to avoid. This list is SEPARATE from dietary needs.
+- Any item on this list is strictly prohibited. It must NEVER appear in "meals" (any ingredient, garnish, sauce, or substitute), "shoppingList", or "pantryUsed".
+- This includes obvious derivatives and common forms. Examples:
+  - "peanuts" → no peanuts, peanut butter, peanut oil, peanut sauce.
+  - "tree nuts" → no almonds, cashews, walnuts, pecans, hazelnuts, pistachios, macadamia, brazil nuts, almond milk, almond flour, nut butters (other than seed butters like tahini/sunflower).
+  - "dairy" → no milk, butter, cheese, yogurt, cream, whey, casein, ghee.
+  - "eggs" → no whole eggs, egg whites, egg yolks, mayonnaise made from egg.
+  - "soy" → no soy sauce, tofu, tempeh, edamame, soy milk, miso (soy-based).
+  - "sesame" → no sesame seeds, sesame oil, tahini.
+  - "fish" → no fish, fish sauce, anchovies, Worcestershire (if anchovy-based).
+  - "shellfish" → no shrimp, prawn, crab, lobster, scallop, mussel, clam, oyster.
+  - "wheat/gluten" → no wheat flour, regular pasta, bread, couscous, seitan, soy sauce containing wheat; use gluten-free alternatives.
+- If a prohibited ingredient appears in the user's pantry, IGNORE it. Do not use it in any meal and do not list it in "pantryUsed".
+- Do not suggest a meal and then mark a prohibited ingredient as "optional". Omit it entirely.
+- If a recipe normally requires a prohibited ingredient, choose a different recipe rather than substituting awkwardly.
+
 Pantry limits:
 - The user provides pantry items with quantities. These are hard maximums across the whole plan.
 - For every base ingredient (normalizedName) that comes from the pantry, the sum of its qty across ALL meals must NOT exceed the pantry amount.
