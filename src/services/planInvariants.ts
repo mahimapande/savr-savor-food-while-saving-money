@@ -86,7 +86,8 @@ export interface InvariantViolation {
     | "pantry-cap-exceeded"
     | "pantry-no-qty-default-exceeded"
     | "allergy-derivative-detected"
-    | "cuisine-label-unknown";
+    | "cuisine-label-unknown"
+    | "cuisine-tag-empty";
   message: string;
   details?: Record<string, unknown>;
 }
@@ -96,6 +97,8 @@ export interface InvariantReport {
   violations: InvariantViolation[];
   /** Ingredient name → effective cap that was applied (incl. defaults). */
   effectivePantryCaps: Record<string, { cap: number; unit: string; usedDefault: boolean }>;
+  /** Cuisine tags returned by the model that didn't match any canonical label (kept as-is). */
+  unknownCuisineTags: { meal: string; tag: string }[];
 }
 
 /**
