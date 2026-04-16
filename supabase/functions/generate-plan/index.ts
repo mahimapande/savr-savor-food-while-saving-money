@@ -287,7 +287,58 @@ function buildUserMessage(inputs: Record<string, unknown>): string {
 }
 
 // ---------------------------------------------------------------------------
-// Handler
+// Call OpenAI once with the given messages and return the parsed plan JSON.
+// ---------------------------------------------------------------------------
+async function callOpenAI(
+  apiKey: string,
+  messages: { role: string; content: string }[]
+): Promise<{ ok: true; plan: any } | { ok: false; status: number; error: string }> {
+  const response = await fetch(OPENAI_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages,
+      tools: [PLAN_TOOL],
+      tool_choice: { type: "function", function: { name: "return_meal_plan" } },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI error:", response.status, errorText);
+    return { ok: false, status: response.status, error: errorText };
+  }
+
+  const result = await response.json();
+  const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+
+  if (toolCall && toolCall.function.name === "return_meal_plan") {
+    return { ok: true, plan: JSON.parse(toolCall.function.arguments) };
+  }
+
+  // Fallback: try parsing message content as JSON
+  const content = result.choices?.[0]?.message?.content;
+  if (content) {
+    try {
+      return { ok: true, plan: JSON.parse(content) };
+    } catch {
+      console.error("Could not parse OpenAI response as JSON");
+    }
+  }
+  return { ok: false, status: 500, error: "OpenAI did not return structured plan data" };
+}
+
+function totalRequestedMeals(inputs: Record<string, unknown>): number {
+  const mc = (inputs.mealCounts as Record<string, number>) || {};
+  return Object.values(mc).reduce((s, n) => s + (Number(n) || 0), 0);
+}
+
+// ---------------------------------------------------------------------------
+// Handler — supports a single retry when the model under-fills the schedule.
 // ---------------------------------------------------------------------------
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -302,77 +353,82 @@ serve(async (req) => {
 
     const body = await req.json();
     const inputs = body.inputs || {};
+    const allowRetry = body.allowRetry !== false; // default true
     const userMessage = buildUserMessage(inputs);
+    const requestedSlots = totalRequestedMeals(inputs);
 
     console.log(`Calling OpenAI ${OPENAI_MODEL} for meal plan generation...`);
 
-    const response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userMessage },
-        ],
-        tools: [PLAN_TOOL],
-        tool_choice: { type: "function", function: { name: "return_meal_plan" } },
-      }),
-    });
+    const messages: { role: string; content: string }[] = [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: userMessage },
+    ];
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI error:", response.status, errorText);
+    let attempt = await callOpenAI(OPENAI_API_KEY, messages);
+    let retried = false;
 
-      if (response.status === 429) {
+    if (!attempt.ok) {
+      if (attempt.status === 429) {
         return new Response(
           JSON.stringify({ error: "OpenAI rate limit exceeded. Please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 401) {
+      if (attempt.status === 401) {
         return new Response(
           JSON.stringify({ error: "Invalid OpenAI API key. Please check the OPENAI_API_KEY secret." }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-
       return new Response(
-        JSON.stringify({ error: `OpenAI error (${response.status})` }),
+        JSON.stringify({ error: `OpenAI error (${attempt.status})` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const result = await response.json();
-    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+    let planData = attempt.plan;
+    let filledSlots = Array.isArray(planData?.meals) ? planData.meals.length : 0;
+    console.log(`OpenAI returned ${filledSlots} meals (requested ${requestedSlots})`);
 
-    if (!toolCall || toolCall.function.name !== "return_meal_plan") {
-      const content = result.choices?.[0]?.message?.content;
-      if (content) {
-        try {
-          const parsed = JSON.parse(content);
-          return new Response(JSON.stringify({ plan: parsed }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        } catch {
-          console.error("Could not parse OpenAI response as JSON");
-        }
+    // Schedule-coverage retry: if the model under-fills, ask once more with an
+    // explicit corrective message, preserving previous constraints.
+    if (allowRetry && requestedSlots > 0 && filledSlots < requestedSlots) {
+      retried = true;
+      console.log(`Under-fill detected (${filledSlots}/${requestedSlots}). Issuing single retry...`);
+
+      const correction =
+        `You returned only ${filledSlots} meals, but the user requested ` +
+        `${requestedSlots}. You MUST now generate a corrected plan that fills ` +
+        `ALL ${requestedSlots} requested slots, preserving previous constraints ` +
+        `(diet, allergies, pantry quantities, budget). Return the FULL set of ` +
+        `meals again — every selected day/category slot must be filled exactly once.`;
+
+      const retryMessages = [
+        ...messages,
+        {
+          role: "assistant",
+          content: `Returned ${filledSlots} meals (incomplete).`,
+        },
+        { role: "user", content: correction },
+      ];
+
+      const retryAttempt = await callOpenAI(OPENAI_API_KEY, retryMessages);
+      if (retryAttempt.ok) {
+        planData = retryAttempt.plan;
+        filledSlots = Array.isArray(planData?.meals) ? planData.meals.length : 0;
+        console.log(`Retry returned ${filledSlots} meals`);
+      } else {
+        console.warn("Retry call failed, keeping first attempt:", retryAttempt.error);
       }
-      return new Response(
-        JSON.stringify({ error: "OpenAI did not return structured plan data" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
-    const planData = JSON.parse(toolCall.function.arguments);
-    console.log(`OpenAI returned ${planData.meals?.length || 0} meals`);
-
-    return new Response(JSON.stringify({ plan: planData }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        plan: planData,
+        meta: { requestedSlots, filledSlots, retried },
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (e) {
     console.error("generate-plan error:", e);
     return new Response(
