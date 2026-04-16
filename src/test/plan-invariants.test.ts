@@ -174,6 +174,60 @@ describe("Invariant: cuisine label casing normalization", () => {
     });
     expect(report.violations.some(v => v.code === "cuisine-label-unknown")).toBe(true);
   });
+
+  it("normalizes all-lowercase tags from the model (S3 regression)", () => {
+    const meals = [
+      meal({ id: "m1", name: "Pasta", ingredients: [], cuisineTags: ["italian"] }),
+      meal({ id: "m2", name: "Curry", ingredients: [], cuisineTags: ["thai"] }),
+    ];
+    const p = plan(meals);
+    const report = assertPlanInvariants(p, {
+      pantryInputs: [],
+      allergies: [],
+      selectedCuisines: ["Italian", "Thai", "American"],
+    });
+    expect(p.meals[0].cuisineTags).toEqual(["Italian"]);
+    expect(p.meals[1].cuisineTags).toEqual(["Thai"]);
+    expect(report.violations.filter(v => v.code === "cuisine-label-unknown")).toHaveLength(0);
+    expect(report.violations.filter(v => v.code === "cuisine-tag-empty")).toHaveLength(0);
+  });
+
+  it("flags + auto-fills meals with empty cuisineTags when cuisines are selected (S2 regression)", () => {
+    const meals = [
+      meal({ id: "m1", name: "Pasta", ingredients: [], cuisineTags: ["Italian"] }),
+      meal({ id: "m2", name: "Chicken Fajitas", ingredients: [], cuisineTags: [] }),
+    ];
+    const p = plan(meals);
+    const report = assertPlanInvariants(p, {
+      pantryInputs: [],
+      allergies: [],
+      selectedCuisines: ["Italian", "Thai", "American"],
+    });
+    const emptyViol = report.violations.find(v => v.code === "cuisine-tag-empty");
+    expect(emptyViol).toBeDefined();
+    expect(emptyViol?.details?.meal).toBe("Chicken Fajitas");
+    expect(p.meals[1].cuisineTags).toEqual(["Italian"]);
+  });
+
+  it("does NOT flag empty cuisineTags when no cuisines selected", () => {
+    const m = meal({ id: "m1", ingredients: [], cuisineTags: [] });
+    const report = assertPlanInvariants(plan([m]), {
+      pantryInputs: [],
+      allergies: [],
+      selectedCuisines: [],
+    });
+    expect(report.violations.filter(v => v.code === "cuisine-tag-empty")).toHaveLength(0);
+  });
+
+  it("tracks unknown cuisine tags in the report", () => {
+    const m = meal({ id: "m1", name: "Mystery", ingredients: [], cuisineTags: ["Martian"] });
+    const report = assertPlanInvariants(plan([m]), {
+      pantryInputs: [],
+      allergies: [],
+      selectedCuisines: ["Italian"],
+    });
+    expect(report.unknownCuisineTags).toEqual([{ meal: "Mystery", tag: "Martian" }]);
+  });
 });
 
 // ---------------------------------------------------------------------------
