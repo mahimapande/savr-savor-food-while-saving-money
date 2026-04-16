@@ -232,4 +232,59 @@ describe("Invariant: allergy derivative scan", () => {
     });
     expect(report.violations.filter(v => v.code === "allergy-derivative-detected")).toHaveLength(0);
   });
+
+  it("does NOT flag coconut milk as dairy (S3 regression)", () => {
+    const m = meal({
+      id: "curry",
+      name: "Vegetable Curry",
+      ingredients: [
+        ing({ name: "1 can coconut milk", normalizedName: "coconut milk", qty: 1, unit: "can" }),
+        ing({ name: "1 cup rice", normalizedName: "rice", qty: 1, unit: "cup" }),
+      ],
+    });
+    const report = assertPlanInvariants(plan([m]), {
+      pantryInputs: [],
+      allergies: ["dairy", "eggs", "peanuts"],
+      selectedCuisines: [],
+    });
+    expect(report.violations.filter(v => v.code === "allergy-derivative-detected")).toHaveLength(0);
+  });
+
+  it("does NOT flag almond/soy/oat milk as dairy", () => {
+    const meals = [
+      meal({ id: "m1", ingredients: [ing({ name: "almond milk", normalizedName: "almond milk", qty: 1, unit: "cup" })] }),
+      meal({ id: "m2", ingredients: [ing({ name: "soy milk", normalizedName: "soy milk", qty: 1, unit: "cup" })] }),
+      meal({ id: "m3", ingredients: [ing({ name: "oat milk", normalizedName: "oat milk", qty: 1, unit: "cup" })] }),
+    ];
+    const report = assertPlanInvariants(plan(meals), {
+      pantryInputs: [],
+      allergies: ["dairy"],
+      selectedCuisines: [],
+    });
+    expect(report.violations.filter(v => v.code === "allergy-derivative-detected")).toHaveLength(0);
+  });
+
+  it("still flags real dairy terms (whole milk, cheese, butter, whey)", () => {
+    const cases = [
+      { name: "1 cup whole milk", normalized: "milk" },
+      { name: "1/2 cup cheese", normalized: "cheese" },
+      { name: "1 tbsp butter", normalized: "butter" },
+      { name: "1 scoop whey protein", normalized: "whey" },
+    ];
+    for (const c of cases) {
+      const m = meal({
+        id: c.normalized,
+        ingredients: [ing({ name: c.name, normalizedName: c.normalized, qty: 1, unit: "cup" })],
+      });
+      const report = assertPlanInvariants(plan([m]), {
+        pantryInputs: [],
+        allergies: ["dairy"],
+        selectedCuisines: [],
+      });
+      expect(
+        report.violations.some(v => v.code === "allergy-derivative-detected"),
+        `expected violation for ${c.name}`
+      ).toBe(true);
+    }
+  });
 });
