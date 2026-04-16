@@ -64,7 +64,13 @@ export interface PlanDebugInfo {
   pantryUsageBeforeEnforcement: Record<string, { totalQty: number; unit: string }>;
   pantryUsageAfterEnforcement: Record<string, { usedQty: number; unit: string }>;
   excessMovedToGrocery: { name: string; qty: number; unit: string }[];
-  validation: { schemaValid: boolean; pantryCapped: boolean; metricsRecomputed: boolean };
+  validation: {
+    schemaValid: boolean;
+    pantryCapped: boolean;
+    metricsRecomputed: boolean;
+    invariantsOk?: boolean;
+    invariantViolations?: { code: string; message: string }[];
+  };
 }
 
 export interface PlanData {

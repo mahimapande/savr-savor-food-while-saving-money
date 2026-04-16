@@ -25,6 +25,7 @@ import {
   buildStructuredIngredient,
 } from "@/data/mockData";
 import { computeIngredientCost, parseIngredient } from "@/data/priceMap";
+import { assertPlanInvariants, InvariantReport } from "./planInvariants";
 
 // ---------------------------------------------------------------------------
 // Transform raw LLM meals into PlanData shape expected by post-processing
@@ -198,6 +199,16 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
     const pantryInputs = inputs.pantryItems || [];
     const enforcement = enforcePantryLimits(validatedPlan, pantryInputs);
 
+    // Run invariant assertions (defense-in-depth)
+    const invariants = assertPlanInvariants(enforcement.plan, {
+      pantryInputs,
+      allergies: inputs.allergies || [],
+      selectedCuisines: inputs.cuisines || [],
+    });
+    if (!invariants.ok) {
+      console.warn("Plan invariant violations:", invariants.violations);
+    }
+
     // Attach debug info in dev mode
     if (import.meta.env.DEV) {
       const finalSnapshot = JSON.parse(JSON.stringify(enforcement.plan)) as PlanData;
@@ -223,6 +234,8 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
             enforcement.excessMoved.length === 0 ||
             Object.keys(enforcement.pantryUsageAfter).length >= 0,
           metricsRecomputed: true,
+          invariantsOk: invariants.ok,
+          invariantViolations: invariants.violations.map(v => ({ code: v.code, message: v.message })),
         },
       } satisfies PlanDebugInfo;
     }
