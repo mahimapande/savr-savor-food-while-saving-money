@@ -12,6 +12,17 @@ import { UtensilsCrossed, Plus, X, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const CUISINES = ["Italian", "Thai", "American"];
+const COMMON_ALLERGENS = [
+  "Peanuts",
+  "Tree nuts",
+  "Dairy",
+  "Eggs",
+  "Soy",
+  "Sesame",
+  "Fish",
+  "Shellfish",
+  "Wheat/Gluten",
+];
 const PANTRY_DEFAULTS = [
   { name: "Eggs", placeholder: "e.g. 6 large eggs" },
   { name: "Milk", placeholder: "e.g. 1 gallon milk" },
