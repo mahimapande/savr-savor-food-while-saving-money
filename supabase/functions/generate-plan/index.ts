@@ -69,6 +69,23 @@ Hard constraints:
 - Avoid fake duplicates such as "Variation 2" unless meals are meaningfully different in ingredients or preparation.
 - When multiple meals are generated for the same mealType, make them meaningfully different in ingredients or preparation style, not just small wording changes.
 
+Allergies / ingredients to avoid (HARD PROHIBITION — highest priority, above all other rules):
+- The user may provide a list of allergens or ingredients to avoid. This list is SEPARATE from dietary needs.
+- Any item on this list is strictly prohibited. It must NEVER appear in "meals" (any ingredient, garnish, sauce, or substitute), "shoppingList", or "pantryUsed".
+- This includes obvious derivatives and common forms. Examples:
+  - "peanuts" → no peanuts, peanut butter, peanut oil, peanut sauce.
+  - "tree nuts" → no almonds, cashews, walnuts, pecans, hazelnuts, pistachios, macadamia, brazil nuts, almond milk, almond flour, nut butters (other than seed butters like tahini/sunflower).
+  - "dairy" → no milk, butter, cheese, yogurt, cream, whey, casein, ghee.
+  - "eggs" → no whole eggs, egg whites, egg yolks, mayonnaise made from egg.
+  - "soy" → no soy sauce, tofu, tempeh, edamame, soy milk, miso (soy-based).
+  - "sesame" → no sesame seeds, sesame oil, tahini.
+  - "fish" → no fish, fish sauce, anchovies, Worcestershire (if anchovy-based).
+  - "shellfish" → no shrimp, prawn, crab, lobster, scallop, mussel, clam, oyster.
+  - "wheat/gluten" → no wheat flour, regular pasta, bread, couscous, seitan, soy sauce containing wheat; use gluten-free alternatives.
+- If a prohibited ingredient appears in the user's pantry, IGNORE it. Do not use it in any meal and do not list it in "pantryUsed".
+- Do not suggest a meal and then mark a prohibited ingredient as "optional". Omit it entirely.
+- If a recipe normally requires a prohibited ingredient, choose a different recipe rather than substituting awkwardly.
+
 Pantry limits:
 - The user provides pantry items with quantities. These are hard maximums across the whole plan.
 - For every base ingredient (normalizedName) that comes from the pantry, the sum of its qty across ALL meals must NOT exceed the pantry amount.
@@ -103,6 +120,7 @@ Final check before returning:
 - Verify that every selected day/category slot is filled once.
 - Verify that no unselected day/category slot is filled.
 - Verify that pantry usage does not exceed pantry quantities.
+- Verify that NO prohibited allergen / avoid ingredient (or its derivatives) appears anywhere in meals, shoppingList, or pantryUsed.
 - Verify that the output contains only the required top-level keys.`;
 
 // ---------------------------------------------------------------------------
@@ -220,6 +238,7 @@ function buildUserMessage(inputs: Record<string, unknown>): string {
     breakfast: 0, lunch: 0, dinner: 5, snack: 0,
   };
   const dietary = (inputs.dietary as string[]) || [];
+  const allergies = (inputs.allergies as string[]) || [];
   const cuisines = (inputs.cuisines as string[]) || [];
   const pantryItems = (inputs.pantryItems as string[]) || [];
   const preference = (inputs.preference as string) || "balanced";
@@ -249,8 +268,13 @@ function buildUserMessage(inputs: Record<string, unknown>): string {
   }
 
   if (dietary.length > 0) parts.push(`Dietary restrictions (strict): ${dietary.join(", ")}`);
+  if (allergies.length > 0) {
+    parts.push(
+      `Allergies / ingredients to AVOID (HARD PROHIBITION — never include these or their derivatives in meals, shoppingList, or pantryUsed; ignore any matching pantry items): ${allergies.join(", ")}`
+    );
+  }
   if (cuisines.length > 0) parts.push(`Preferred cuisines (distribute meals across these): ${cuisines.join(", ")}`);
-  if (pantryItems.length > 0) parts.push(`Pantry inventory (hard maximums): ${pantryItems.join("; ")}`);
+  if (pantryItems.length > 0) parts.push(`Pantry inventory (hard maximums${allergies.length > 0 ? "; ignore any item that matches an allergy/avoid entry" : ""}): ${pantryItems.join("; ")}`);
   parts.push(`Planning preference: ${preference}`);
 
   return parts.join("\n");
