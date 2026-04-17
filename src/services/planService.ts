@@ -292,14 +292,35 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
       );
     }
 
+    const filledBeforeTrim = rawMeals.length;
+    const underFilled = requestedSlots > 0 && filledBeforeTrim < requestedSlots;
+
+    // Over-fill guard: if the model returned MORE meals than requested AND we
+    // are not also under-filled (under-fill rules win — guarded for safety),
+    // trim deterministically to the first N meals. All downstream
+    // metrics/shopping/pricing run against the trimmed array.
+    let overFilled = false;
+    let trimmedCount = 0;
+    if (!underFilled && requestedSlots > 0 && filledBeforeTrim > requestedSlots) {
+      overFilled = true;
+      trimmedCount = filledBeforeTrim - requestedSlots;
+      rawMeals = rawMeals.slice(0, requestedSlots);
+      console.warn(
+        `Schedule over-filled: ${filledBeforeTrim}/${requestedSlots}. ` +
+        `Trimming ${trimmedCount} extra meal(s).`
+      );
+    }
+
     const filledSlots = rawMeals.length;
-    const underFilled = requestedSlots > 0 && filledSlots < requestedSlots;
     const coverage = {
       requested: requestedSlots,
       filled: filledSlots,
       retried: meta.retried,
       underFilled,
       retryCount,
+      ...(overFilled
+        ? { overFilled: true, filledBeforeTrim, trimmedCount }
+        : {}),
     };
 
     if (rawMeals.length === 0) {
