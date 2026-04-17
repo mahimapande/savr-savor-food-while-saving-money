@@ -397,6 +397,9 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
           invariantsOk: !underFilled && !overFilled && invariants.ok,
           invariantViolations: allViolations.map(v => ({ code: v.code, message: v.message })),
         },
+        coverage,
+        ...(overFilled ? { scheduleOverfillTrimmed: true } : {}),
+        ...(underFilled ? { scheduleCoverageFailed: true } : {}),
       } satisfies PlanDebugInfo;
     }
 

@@ -71,6 +71,19 @@ export interface PlanDebugInfo {
     invariantsOk?: boolean;
     invariantViolations?: { code: string; message: string }[];
   };
+  /** Schedule-coverage telemetry from the generation pipeline. */
+  coverage?: {
+    requested: number;
+    filled: number;
+    retried: boolean;
+    underFilled: boolean;
+    retryCount: number;
+    overFilled?: boolean;
+    filledBeforeTrim?: number;
+    trimmedCount?: number;
+  };
+  scheduleOverfillTrimmed?: boolean;
+  scheduleCoverageFailed?: boolean;
 }
 
 export interface PlanData {
