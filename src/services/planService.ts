@@ -176,12 +176,20 @@ export interface GeneratePlanResult {
     underFilled: boolean;
     /** Number of retry attempts performed after the initial call (0, 1, or 2). */
     retryCount: number;
+    /** True when the model returned more meals than requested and we trimmed. */
+    overFilled?: boolean;
+    /** Original meal count before any trimming (only set when overFilled). */
+    filledBeforeTrim?: number;
+    /** Number of meals trimmed off the end (filledBeforeTrim - requested). */
+    trimmedCount?: number;
   };
   /**
    * When the model under-fills both initial and retry attempts, this flag is
    * set so the UI can show a friendly error instead of a partial plan.
    */
   scheduleCoverageFailed?: boolean;
+  /** Set when over-fill was detected and trimmed. */
+  scheduleOverfillTrimmed?: boolean;
 }
 
 function totalRequestedSlots(inputs: FormInputs): number {
