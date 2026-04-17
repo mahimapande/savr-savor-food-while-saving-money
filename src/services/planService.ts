@@ -223,32 +223,76 @@ async function invokeGeneratePlan(
   };
 }
 
+/**
+ * Hybrid retry policy for under-filled schedules:
+ *   - Always allow 1 client-side retry (mirrors prior behavior).
+ *   - For medium plans (requestedSlots in [6, 10]), allow up to 2 retries total
+ *     after the initial attempt — stop early if any retry reaches full coverage.
+ *   - Outside that range: keep single-retry behavior.
+ */
+function maxRetriesFor(requestedSlots: number): number {
+  if (requestedSlots >= 6 && requestedSlots <= 10) return 2;
+  return 1;
+}
+
 export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePlanResult> {
   const requestedSlots = totalRequestedSlots(inputs);
 
   try {
-    // First call — server may auto-retry once on under-fill.
+    // Initial attempt — server may auto-retry once on under-fill.
     let { rawMeals, meta } = await invokeGeneratePlan(inputs, true);
+    let retryCount = 0;
+    const maxRetries = maxRetriesFor(requestedSlots);
 
-    // Defensive client-side retry: if the server didn't retry (older deploy or
-    // older response shape) and we're still short, ask once more explicitly.
-    if (
+    // Client-side retry loop. We only retry while still under-filled, the
+    // server didn't already retry on this attempt, and we haven't hit our cap.
+    while (
       requestedSlots > 0 &&
       rawMeals.length < requestedSlots &&
-      !meta.retried
+      retryCount < maxRetries
+    ) {
+      retryCount++;
+      const isExtraRetry = retryCount === 2;
+      console.warn(
+        `Schedule under-filled: ${rawMeals.length}/${requestedSlots}. ` +
+        `Issuing client-side retry #${retryCount}` +
+        (isExtraRetry ? " (hybrid policy: medium plan, second retry)" : "") +
+        `...`
+      );
+      const next = await invokeGeneratePlan(inputs, true);
+      rawMeals = next.rawMeals;
+      meta = { ...next.meta, retried: true };
+
+      if (rawMeals.length >= requestedSlots) {
+        if (isExtraRetry) {
+          console.info(
+            `Hybrid retry recovered missing slot(s) on retry #2 ` +
+            `(${rawMeals.length}/${requestedSlots}).`
+          );
+        }
+        break;
+      }
+    }
+
+    if (
+      requestedSlots >= 6 && requestedSlots <= 10 &&
+      retryCount === 2 && rawMeals.length < requestedSlots
     ) {
       console.warn(
-        `Server returned ${rawMeals.length}/${requestedSlots} without retrying. ` +
-        `Issuing a client-side retry...`
+        `Hybrid retry exhausted: still ${rawMeals.length}/${requestedSlots} ` +
+        `after 2 retries.`
       );
-      const second = await invokeGeneratePlan(inputs, true);
-      rawMeals = second.rawMeals;
-      meta = { ...second.meta, retried: true };
     }
 
     const filledSlots = rawMeals.length;
     const underFilled = requestedSlots > 0 && filledSlots < requestedSlots;
-    const coverage = { requested: requestedSlots, filled: filledSlots, retried: meta.retried, underFilled };
+    const coverage = {
+      requested: requestedSlots,
+      filled: filledSlots,
+      retried: meta.retried,
+      underFilled,
+      retryCount,
+    };
 
     if (rawMeals.length === 0) {
       throw new Error("AI returned empty meal plan");
