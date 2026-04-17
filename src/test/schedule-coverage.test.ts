@@ -285,3 +285,54 @@ describe("Schedule-coverage: violation appears in debug info", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Over-fill guard
+// ---------------------------------------------------------------------------
+describe("Schedule-overfill: trim guard", () => {
+  it("S1 pattern (19/15): trims to 15 meals and emits schedule-overfill invariant", async () => {
+    const inputs: FormInputs = {
+      ...BASE_INPUTS,
+      mealCounts: { breakfast: 5, lunch: 5, dinner: 5, snack: 0 },
+    };
+    invokeMock.mockResolvedValueOnce(mockResponse(19, 15, false));
+
+    const result = await generatePlanFromAI(inputs);
+
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+    expect(result.source).toBe("ai");
+    expect(result.scheduleCoverageFailed).toBeFalsy();
+    expect(result.scheduleOverfillTrimmed).toBe(true);
+    expect(result.plan.meals.length).toBe(15);
+    expect(result.coverage?.requested).toBe(15);
+    expect(result.coverage?.filled).toBe(15);
+    expect(result.coverage?.overFilled).toBe(true);
+    expect(result.coverage?.filledBeforeTrim).toBe(19);
+    expect(result.coverage?.trimmedCount).toBe(4);
+
+    // Debug info should carry the schedule-overfill invariant entry.
+    const debug = (result.plan as any).__debugInfo;
+    if (debug) {
+      const codes = (debug.validation.invariantViolations || []).map((v: any) => v.code);
+      expect(codes).toContain("schedule-overfill");
+      expect(debug.validation.invariantsOk).toBe(false);
+    }
+  });
+
+  it("does NOT trim or emit schedule-overfill when filled === requested", async () => {
+    invokeMock.mockResolvedValueOnce(mockResponse(5, 5, false));
+
+    const result = await generatePlanFromAI(BASE_INPUTS);
+
+    expect(result.scheduleOverfillTrimmed).toBeFalsy();
+    expect(result.coverage?.overFilled).toBeUndefined();
+    expect(result.coverage?.trimmedCount).toBeUndefined();
+    expect(result.plan.meals.length).toBe(5);
+
+    const debug = (result.plan as any).__debugInfo;
+    if (debug) {
+      const codes = (debug.validation.invariantViolations || []).map((v: any) => v.code);
+      expect(codes).not.toContain("schedule-overfill");
+    }
+  });
+});

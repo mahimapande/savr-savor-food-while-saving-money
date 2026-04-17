@@ -176,12 +176,20 @@ export interface GeneratePlanResult {
     underFilled: boolean;
     /** Number of retry attempts performed after the initial call (0, 1, or 2). */
     retryCount: number;
+    /** True when the model returned more meals than requested and we trimmed. */
+    overFilled?: boolean;
+    /** Original meal count before any trimming (only set when overFilled). */
+    filledBeforeTrim?: number;
+    /** Number of meals trimmed off the end (filledBeforeTrim - requested). */
+    trimmedCount?: number;
   };
   /**
    * When the model under-fills both initial and retry attempts, this flag is
    * set so the UI can show a friendly error instead of a partial plan.
    */
   scheduleCoverageFailed?: boolean;
+  /** Set when over-fill was detected and trimmed. */
+  scheduleOverfillTrimmed?: boolean;
 }
 
 function totalRequestedSlots(inputs: FormInputs): number {
@@ -284,14 +292,35 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
       );
     }
 
+    const filledBeforeTrim = rawMeals.length;
+    const underFilled = requestedSlots > 0 && filledBeforeTrim < requestedSlots;
+
+    // Over-fill guard: if the model returned MORE meals than requested AND we
+    // are not also under-filled (under-fill rules win — guarded for safety),
+    // trim deterministically to the first N meals. All downstream
+    // metrics/shopping/pricing run against the trimmed array.
+    let overFilled = false;
+    let trimmedCount = 0;
+    if (!underFilled && requestedSlots > 0 && filledBeforeTrim > requestedSlots) {
+      overFilled = true;
+      trimmedCount = filledBeforeTrim - requestedSlots;
+      rawMeals = rawMeals.slice(0, requestedSlots);
+      console.warn(
+        `Schedule over-filled: ${filledBeforeTrim}/${requestedSlots}. ` +
+        `Trimming ${trimmedCount} extra meal(s).`
+      );
+    }
+
     const filledSlots = rawMeals.length;
-    const underFilled = requestedSlots > 0 && filledSlots < requestedSlots;
     const coverage = {
       requested: requestedSlots,
       filled: filledSlots,
       retried: meta.retried,
       underFilled,
       retryCount,
+      ...(overFilled
+        ? { overFilled: true, filledBeforeTrim, trimmedCount }
+        : {}),
     };
 
     if (rawMeals.length === 0) {
@@ -315,13 +344,24 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
       selectedCuisines: inputs.cuisines || [],
     });
 
-    // Augment invariants with schedule-coverage violation if applicable.
+    // Augment invariants with schedule-coverage / over-fill violations.
     const allViolations = [...invariants.violations];
     if (underFilled) {
       allViolations.push({
         code: "schedule-coverage" as any,
         message: `Schedule under-filled after retry: ${filledSlots}/${requestedSlots} meals`,
         details: { filled: filledSlots, requested: requestedSlots, retried: meta.retried } as any,
+      });
+    }
+    if (overFilled) {
+      allViolations.push({
+        code: "schedule-overfill" as any,
+        message: `Schedule over-filled: model returned ${filledBeforeTrim} meals for ${requestedSlots} slots; trimmed ${trimmedCount}.`,
+        details: {
+          requestedSlots,
+          filledSlotsBeforeTrim: filledBeforeTrim,
+          trimmedCount,
+        } as any,
       });
     }
 
@@ -354,7 +394,7 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
             enforcement.excessMoved.length === 0 ||
             Object.keys(enforcement.pantryUsageAfter).length >= 0,
           metricsRecomputed: true,
-          invariantsOk: !underFilled && invariants.ok,
+          invariantsOk: !underFilled && !overFilled && invariants.ok,
           invariantViolations: allViolations.map(v => ({ code: v.code, message: v.message })),
         },
       } satisfies PlanDebugInfo;
@@ -371,7 +411,12 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
       };
     }
 
-    return { plan: enforcement.plan, source: "ai", coverage };
+    return {
+      plan: enforcement.plan,
+      source: "ai",
+      coverage,
+      ...(overFilled ? { scheduleOverfillTrimmed: true } : {}),
+    };
   } catch (err) {
     console.warn("AI plan generation failed, falling back to local:", err);
     const localPlan = generateLocalPlan(inputs);
