@@ -174,6 +174,8 @@ export interface GeneratePlanResult {
     filled: number;
     retried: boolean;
     underFilled: boolean;
+    /** Number of retry attempts performed after the initial call (0, 1, or 2). */
+    retryCount: number;
   };
   /**
    * When the model under-fills both initial and retry attempts, this flag is
