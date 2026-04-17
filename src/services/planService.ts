@@ -344,13 +344,24 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
       selectedCuisines: inputs.cuisines || [],
     });
 
-    // Augment invariants with schedule-coverage violation if applicable.
+    // Augment invariants with schedule-coverage / over-fill violations.
     const allViolations = [...invariants.violations];
     if (underFilled) {
       allViolations.push({
         code: "schedule-coverage" as any,
         message: `Schedule under-filled after retry: ${filledSlots}/${requestedSlots} meals`,
         details: { filled: filledSlots, requested: requestedSlots, retried: meta.retried } as any,
+      });
+    }
+    if (overFilled) {
+      allViolations.push({
+        code: "schedule-overfill" as any,
+        message: `Schedule over-filled: model returned ${filledBeforeTrim} meals for ${requestedSlots} slots; trimmed ${trimmedCount}.`,
+        details: {
+          requestedSlots,
+          filledSlotsBeforeTrim: filledBeforeTrim,
+          trimmedCount,
+        } as any,
       });
     }
 
