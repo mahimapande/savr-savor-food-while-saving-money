@@ -101,6 +101,40 @@ const PlanDebugPanel = ({ debug }: Props) => {
             </div>
           )}
 
+          {/* Schedule health row — at-a-glance coverage status */}
+          {debug.coverage && (
+            <div className="mb-3 rounded-md border border-muted-foreground/20 bg-background/40 p-3 text-xs font-mono">
+              <div className="mb-1.5 font-semibold text-foreground">Schedule health</div>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge
+                  variant={
+                    debug.scheduleCoverageFailed
+                      ? "destructive"
+                      : debug.coverage.filled === debug.coverage.requested
+                        ? "default"
+                        : "secondary"
+                  }
+                  className="text-[10px] font-mono"
+                >
+                  {debug.coverage.filled}/{debug.coverage.requested} slots
+                </Badge>
+                <Badge variant="outline" className="text-[10px] font-mono">
+                  retries: {debug.coverage.retryCount}
+                </Badge>
+                {debug.coverage.overFilled && (
+                  <Badge variant="destructive" className="text-[10px] font-mono">
+                    over-filled {debug.coverage.filledBeforeTrim} → trimmed {debug.coverage.trimmedCount}
+                  </Badge>
+                )}
+                {debug.scheduleCoverageFailed && (
+                  <Badge variant="destructive" className="text-[10px] font-mono">
+                    coverage FAILED
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Validation badges */}
           <div className="mb-4 flex flex-wrap gap-2">
             <ValidationBadge label="Schema valid" ok={validation.schemaValid} />
