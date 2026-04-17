@@ -394,7 +394,7 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
             enforcement.excessMoved.length === 0 ||
             Object.keys(enforcement.pantryUsageAfter).length >= 0,
           metricsRecomputed: true,
-          invariantsOk: !underFilled && invariants.ok,
+          invariantsOk: !underFilled && !overFilled && invariants.ok,
           invariantViolations: allViolations.map(v => ({ code: v.code, message: v.message })),
         },
       } satisfies PlanDebugInfo;
