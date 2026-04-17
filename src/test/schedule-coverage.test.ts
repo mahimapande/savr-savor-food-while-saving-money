@@ -1,11 +1,24 @@
 /**
- * Regression tests for schedule-coverage assertion + retry in planService.
+ * Regression tests for the hybrid schedule-coverage retry policy in planService.
  *
- * Scenarios:
- *   - S1 pattern: 13/15 → server-meta says retry already happened, still under-fill → scheduleCoverageFailed
- *   - S2 pattern: 5/7  → server didn't retry (older shape) → client-side retry succeeds
- *   - S3 pattern: 7/8  → server-meta retried but second attempt also short → scheduleCoverageFailed
- *   - Happy path: 5/5 first try → no retry triggered, no failure flag
+ * Hybrid policy:
+ *   - Always make 1 initial attempt.
+ *   - If under-filled and requestedSlots ∈ [6, 10] → up to 2 retries.
+ *   - Otherwise → 1 retry only.
+ *   - Stop early as soon as any attempt reaches full coverage.
+ *
+ * Scenarios covered:
+ *   - Happy path: full fill on first try → no retry.
+ *   - S2 pattern (7 slots): first retry recovers → success.
+ *   - S3 pattern (8 slots): both retries fail → scheduleCoverageFailed.
+ *   - Hybrid recovery: 6/8 → 7/8 → 8/8 succeeds on second retry.
+ *   - 6/7 pattern recovers on second retry.
+ *   - Early stop: first retry fills → no second retry call.
+ *   - Outside hybrid range:
+ *       - 5 slots: only 1 retry, then fail.
+ *       - 12 slots: only 1 retry, then fail.
+ *       - 15 slots (S1): only 1 retry, then fail.
+ *   - Debug info contains schedule-coverage violation when under-filled.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -21,7 +34,9 @@ vi.mock("@/integrations/supabase/client", () => ({
 import { generatePlanFromAI } from "@/services/planService";
 import type { FormInputs } from "@/data/mockData";
 
-// Helper: build a minimal valid raw meal as the edge function would return it.
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 function rawMeal(id: string, day: string, mealType: "breakfast" | "lunch" | "dinner" | "snack") {
   return {
     id,
@@ -60,6 +75,16 @@ function makeRawMeals(count: number) {
   return meals;
 }
 
+function mockResponse(filled: number, requested: number, retried = true) {
+  return {
+    data: {
+      plan: { meals: makeRawMeals(filled) },
+      meta: { requestedSlots: requested, filledSlots: filled, retried },
+    },
+    error: null,
+  };
+}
+
 const BASE_INPUTS: FormInputs = {
   budget: "60",
   meals: "5",
@@ -74,15 +99,12 @@ beforeEach(() => {
   invokeMock.mockReset();
 });
 
+// ---------------------------------------------------------------------------
+// Happy path
+// ---------------------------------------------------------------------------
 describe("Schedule-coverage: happy path (no retry)", () => {
   it("does not trigger any extra invoke when the model fills all slots", async () => {
-    invokeMock.mockResolvedValueOnce({
-      data: {
-        plan: { meals: makeRawMeals(5) },
-        meta: { requestedSlots: 5, filledSlots: 5, retried: false },
-      },
-      error: null,
-    });
+    invokeMock.mockResolvedValueOnce(mockResponse(5, 5, false));
 
     const result = await generatePlanFromAI(BASE_INPUTS);
 
@@ -94,58 +116,28 @@ describe("Schedule-coverage: happy path (no retry)", () => {
       filled: 5,
       retried: false,
       underFilled: false,
+      retryCount: 0,
     });
   });
 });
 
-describe("Schedule-coverage: S1 pattern (13/15, server retried, still short)", () => {
-  it("flags scheduleCoverageFailed and returns a friendly error", async () => {
-    const inputs: FormInputs = {
-      ...BASE_INPUTS,
-      mealCounts: { breakfast: 5, lunch: 5, dinner: 5, snack: 0 },
-    };
+// ---------------------------------------------------------------------------
+// In-range hybrid retries (6–10 slots)
+// ---------------------------------------------------------------------------
+describe("Hybrid retry: medium plans (6–10 slots) get up to 2 retries", () => {
+  const mediumInputs: FormInputs = {
+    ...BASE_INPUTS,
+    mealCounts: { breakfast: 2, lunch: 3, dinner: 3, snack: 0 }, // 8 slots
+  };
 
-    invokeMock.mockResolvedValueOnce({
-      data: {
-        plan: { meals: makeRawMeals(13) },
-        meta: { requestedSlots: 15, filledSlots: 13, retried: true },
-      },
-      error: null,
-    });
-
-    const result = await generatePlanFromAI(inputs);
-
-    expect(invokeMock).toHaveBeenCalledTimes(1); // server already retried
-    expect(result.scheduleCoverageFailed).toBe(true);
-    expect(result.error).toMatch(/13\/15/);
-    expect(result.coverage?.underFilled).toBe(true);
-    expect(result.coverage?.retried).toBe(true);
-  });
-});
-
-describe("Schedule-coverage: S2 pattern (5/7, server didn't retry → client retries)", () => {
-  it("issues a client-side retry when server meta.retried is false and result is short", async () => {
+  it("S2 pattern (5/7): first retry recovers → no second retry", async () => {
     const inputs: FormInputs = {
       ...BASE_INPUTS,
       mealCounts: { breakfast: 0, lunch: 3, dinner: 4, snack: 0 },
     };
-
-    // First call: 5/7, server did not retry
-    invokeMock.mockResolvedValueOnce({
-      data: {
-        plan: { meals: makeRawMeals(5) },
-        meta: { requestedSlots: 7, filledSlots: 5, retried: false },
-      },
-      error: null,
-    });
-    // Second call (client-side retry): full 7
-    invokeMock.mockResolvedValueOnce({
-      data: {
-        plan: { meals: makeRawMeals(7) },
-        meta: { requestedSlots: 7, filledSlots: 7, retried: true },
-      },
-      error: null,
-    });
+    invokeMock
+      .mockResolvedValueOnce(mockResponse(5, 7, false))
+      .mockResolvedValueOnce(mockResponse(7, 7, true));
 
     const result = await generatePlanFromAI(inputs);
 
@@ -156,43 +148,131 @@ describe("Schedule-coverage: S2 pattern (5/7, server didn't retry → client ret
       filled: 7,
       retried: true,
       underFilled: false,
+      retryCount: 1,
     });
   });
-});
 
-describe("Schedule-coverage: S3 pattern (7/8, retried but still short)", () => {
-  it("flags scheduleCoverageFailed when both attempts under-fill", async () => {
+  it("recovers on second retry (6/8 → 7/8 → 8/8)", async () => {
+    invokeMock
+      .mockResolvedValueOnce(mockResponse(6, 8))
+      .mockResolvedValueOnce(mockResponse(7, 8))
+      .mockResolvedValueOnce(mockResponse(8, 8));
+
+    const result = await generatePlanFromAI(mediumInputs);
+
+    expect(invokeMock).toHaveBeenCalledTimes(3);
+    expect(result.scheduleCoverageFailed).toBeFalsy();
+    expect(result.coverage?.retryCount).toBe(2);
+    expect(result.coverage?.filled).toBe(8);
+    expect(result.coverage?.underFilled).toBe(false);
+  });
+
+  it("recovers on second retry for 6/7 pattern", async () => {
     const inputs: FormInputs = {
       ...BASE_INPUTS,
-      mealCounts: { breakfast: 2, lunch: 3, dinner: 3, snack: 0 },
+      mealCounts: { breakfast: 0, lunch: 3, dinner: 4, snack: 0 },
     };
-
-    invokeMock.mockResolvedValueOnce({
-      data: {
-        plan: { meals: makeRawMeals(7) },
-        meta: { requestedSlots: 8, filledSlots: 7, retried: true },
-      },
-      error: null,
-    });
+    invokeMock
+      .mockResolvedValueOnce(mockResponse(6, 7))
+      .mockResolvedValueOnce(mockResponse(6, 7))
+      .mockResolvedValueOnce(mockResponse(7, 7));
 
     const result = await generatePlanFromAI(inputs);
 
-    expect(invokeMock).toHaveBeenCalledTimes(1);
+    expect(invokeMock).toHaveBeenCalledTimes(3);
+    expect(result.scheduleCoverageFailed).toBeFalsy();
+    expect(result.coverage?.retryCount).toBe(2);
+    expect(result.coverage?.filled).toBe(7);
+  });
+
+  it("stops early when first retry fills (no second retry call)", async () => {
+    invokeMock
+      .mockResolvedValueOnce(mockResponse(6, 8))
+      .mockResolvedValueOnce(mockResponse(8, 8));
+
+    const result = await generatePlanFromAI(mediumInputs);
+
+    expect(invokeMock).toHaveBeenCalledTimes(2);
+    expect(result.coverage?.retryCount).toBe(1);
+    expect(result.coverage?.underFilled).toBe(false);
+  });
+
+  it("S3 pattern (7/8): both retries under-fill → scheduleCoverageFailed", async () => {
+    invokeMock
+      .mockResolvedValueOnce(mockResponse(7, 8))
+      .mockResolvedValueOnce(mockResponse(7, 8))
+      .mockResolvedValueOnce(mockResponse(7, 8));
+
+    const result = await generatePlanFromAI(mediumInputs);
+
+    expect(invokeMock).toHaveBeenCalledTimes(3);
     expect(result.scheduleCoverageFailed).toBe(true);
     expect(result.coverage?.underFilled).toBe(true);
+    expect(result.coverage?.retryCount).toBe(2);
     expect(result.error).toMatch(/7\/8/);
   });
 });
 
+// ---------------------------------------------------------------------------
+// Outside hybrid range — single retry only
+// ---------------------------------------------------------------------------
+describe("Hybrid retry: plans outside 6–10 get only 1 retry", () => {
+  it("small plan (5 slots) gets only 1 retry, then fails", async () => {
+    invokeMock
+      .mockResolvedValueOnce(mockResponse(3, 5))
+      .mockResolvedValueOnce(mockResponse(3, 5));
+
+    const result = await generatePlanFromAI(BASE_INPUTS);
+
+    expect(invokeMock).toHaveBeenCalledTimes(2);
+    expect(result.scheduleCoverageFailed).toBe(true);
+    expect(result.coverage?.retryCount).toBe(1);
+  });
+
+  it("large plan (12 slots) gets only 1 retry, then fails", async () => {
+    const inputs: FormInputs = {
+      ...BASE_INPUTS,
+      mealCounts: { breakfast: 4, lunch: 4, dinner: 4, snack: 0 },
+    };
+    invokeMock
+      .mockResolvedValueOnce(mockResponse(10, 12))
+      .mockResolvedValueOnce(mockResponse(10, 12));
+
+    const result = await generatePlanFromAI(inputs);
+
+    expect(invokeMock).toHaveBeenCalledTimes(2);
+    expect(result.scheduleCoverageFailed).toBe(true);
+    expect(result.coverage?.retryCount).toBe(1);
+    expect(result.error).toMatch(/10\/12/);
+  });
+
+  it("S1 pattern (15 slots): only 1 retry → scheduleCoverageFailed", async () => {
+    const inputs: FormInputs = {
+      ...BASE_INPUTS,
+      mealCounts: { breakfast: 5, lunch: 5, dinner: 5, snack: 0 },
+    };
+    invokeMock
+      .mockResolvedValueOnce(mockResponse(13, 15))
+      .mockResolvedValueOnce(mockResponse(13, 15));
+
+    const result = await generatePlanFromAI(inputs);
+
+    expect(invokeMock).toHaveBeenCalledTimes(2);
+    expect(result.scheduleCoverageFailed).toBe(true);
+    expect(result.error).toMatch(/13\/15/);
+    expect(result.coverage?.underFilled).toBe(true);
+    expect(result.coverage?.retryCount).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Debug info
+// ---------------------------------------------------------------------------
 describe("Schedule-coverage: violation appears in debug info", () => {
   it("adds a schedule-coverage entry to invariantViolations when under-filled", async () => {
-    invokeMock.mockResolvedValueOnce({
-      data: {
-        plan: { meals: makeRawMeals(3) },
-        meta: { requestedSlots: 5, filledSlots: 3, retried: true },
-      },
-      error: null,
-    });
+    invokeMock
+      .mockResolvedValueOnce(mockResponse(3, 5))
+      .mockResolvedValueOnce(mockResponse(3, 5));
 
     const result = await generatePlanFromAI(BASE_INPUTS);
     const debug = (result.plan as any).__debugInfo;
