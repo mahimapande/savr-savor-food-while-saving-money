@@ -411,7 +411,12 @@ export async function generatePlanFromAI(inputs: FormInputs): Promise<GeneratePl
       };
     }
 
-    return { plan: enforcement.plan, source: "ai", coverage };
+    return {
+      plan: enforcement.plan,
+      source: "ai",
+      coverage,
+      ...(overFilled ? { scheduleOverfillTrimmed: true } : {}),
+    };
   } catch (err) {
     console.warn("AI plan generation failed, falling back to local:", err);
     const localPlan = generateLocalPlan(inputs);
