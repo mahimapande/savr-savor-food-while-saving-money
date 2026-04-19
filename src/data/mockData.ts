@@ -226,8 +226,23 @@ export function validatePlanData(plan: PlanData): PlanData {
 // ---------------------------------------------------------------------------
 
 export interface PantryBudget {
+  /** Budget in canonical/recipe-friendly units (used for clamping math). */
   maxQty: number;
   unit: string;
+  /**
+   * Original declared quantity & unit, preserved for display.
+   * When the user typed "1 butter" with no unit, displayQty=1, displayUnit="each".
+   * When they typed "1 stick butter", displayQty=1, displayUnit="stick".
+   */
+  displayQty: number;
+  displayUnit: string;
+  /**
+   * True when the budget was inflated from the user's "each" via the
+   * household-unit-sizes table (e.g. "1 butter" → 8 tbsp internally).
+   * The pantry display should always show the original declared value
+   * for these items rather than the recipe-derived unit.
+   */
+  fromHouseholdSize: boolean;
 }
 
 /**
@@ -244,6 +259,11 @@ export function buildPantryMap(pantryInputs: string[]): Record<string, PantryBud
     let qty = parsed.qty;
     let unit = parsed.unit;
 
+    // Preserve original declared values for display BEFORE any conversion.
+    const displayQty = parsed.qty;
+    const displayUnit = parsed.unit;
+    let fromHouseholdSize = false;
+
     // Convert container units to canonical measurement units
     const containerConv = CONTAINER_CONVERSIONS[unit];
     if (containerConv) {
@@ -257,18 +277,29 @@ export function buildPantryMap(pantryInputs: string[]): Record<string, PantryBud
       if (converted != null) { qty = converted; unit = "oz"; }
     }
 
+    // If the user gave no explicit unit ("each") but this ingredient has a
+    // known household package size, expand it for budget math while leaving
+    // the display untouched. e.g. "1 butter" → 8 tbsp internally.
     const name = parsed.baseName;
+    if (unit === "each" && HOUSEHOLD_UNIT_SIZES[name]) {
+      const hh = HOUSEHOLD_UNIT_SIZES[name];
+      qty = qty * hh.qtyPerEach;
+      unit = hh.unit;
+      fromHouseholdSize = true;
+    }
+
     if (map[name]) {
-      // Accumulate if same ingredient listed multiple times
       const existing = map[name];
       const converted = convertQty(qty, unit, existing.unit);
       if (converted != null) {
         existing.maxQty += converted;
-      } else {
-        // Can't convert, keep existing
+      }
+      // Accumulate display qty when display units match
+      if (existing.displayUnit === displayUnit) {
+        existing.displayQty += displayQty;
       }
     } else {
-      map[name] = { maxQty: qty, unit };
+      map[name] = { maxQty: qty, unit, displayQty, displayUnit, fromHouseholdSize };
     }
   }
   return map;
