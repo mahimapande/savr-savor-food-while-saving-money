@@ -1,4 +1,4 @@
-import { computeIngredientCost, parseIngredient, convertQty, CONTAINER_CONVERSIONS } from './priceMap';
+import { computeIngredientCost, parseIngredient, convertQty, CONTAINER_CONVERSIONS, HOUSEHOLD_UNIT_SIZES } from './priceMap';
 
 export type IngredientSource = "pantry" | "grocery";
 
@@ -226,8 +226,23 @@ export function validatePlanData(plan: PlanData): PlanData {
 // ---------------------------------------------------------------------------
 
 export interface PantryBudget {
+  /** Budget in canonical/recipe-friendly units (used for clamping math). */
   maxQty: number;
   unit: string;
+  /**
+   * Original declared quantity & unit, preserved for display.
+   * When the user typed "1 butter" with no unit, displayQty=1, displayUnit="each".
+   * When they typed "1 stick butter", displayQty=1, displayUnit="stick".
+   */
+  displayQty: number;
+  displayUnit: string;
+  /**
+   * True when the budget was inflated from the user's "each" via the
+   * household-unit-sizes table (e.g. "1 butter" → 8 tbsp internally).
+   * The pantry display should always show the original declared value
+   * for these items rather than the recipe-derived unit.
+   */
+  fromHouseholdSize: boolean;
 }
 
 /**
@@ -244,6 +259,11 @@ export function buildPantryMap(pantryInputs: string[]): Record<string, PantryBud
     let qty = parsed.qty;
     let unit = parsed.unit;
 
+    // Preserve original declared values for display BEFORE any conversion.
+    const displayQty = parsed.qty;
+    const displayUnit = parsed.unit;
+    let fromHouseholdSize = false;
+
     // Convert container units to canonical measurement units
     const containerConv = CONTAINER_CONVERSIONS[unit];
     if (containerConv) {
@@ -257,18 +277,29 @@ export function buildPantryMap(pantryInputs: string[]): Record<string, PantryBud
       if (converted != null) { qty = converted; unit = "oz"; }
     }
 
+    // If the user gave no explicit unit ("each") but this ingredient has a
+    // known household package size, expand it for budget math while leaving
+    // the display untouched. e.g. "1 butter" → 8 tbsp internally.
     const name = parsed.baseName;
+    if (unit === "each" && HOUSEHOLD_UNIT_SIZES[name]) {
+      const hh = HOUSEHOLD_UNIT_SIZES[name];
+      qty = qty * hh.qtyPerEach;
+      unit = hh.unit;
+      fromHouseholdSize = true;
+    }
+
     if (map[name]) {
-      // Accumulate if same ingredient listed multiple times
       const existing = map[name];
       const converted = convertQty(qty, unit, existing.unit);
       if (converted != null) {
         existing.maxQty += converted;
-      } else {
-        // Can't convert, keep existing
+      }
+      // Accumulate display qty when display units match
+      if (existing.displayUnit === displayUnit) {
+        existing.displayQty += displayQty;
       }
     } else {
-      map[name] = { maxQty: qty, unit };
+      map[name] = { maxQty: qty, unit, displayQty, displayUnit, fromHouseholdSize };
     }
   }
   return map;
@@ -381,14 +412,22 @@ export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): Enf
     }
   }
 
-  // 4. Rebuild pantryItems from clamped usage
+  // 4. Rebuild pantryItems from clamped usage.
+  // For ingredients whose budget came from a household-size expansion
+  // (e.g. user typed "1 butter" → 8 tbsp internally), display the user's
+  // original phrasing instead of the recipe-derived unit. Cost still reflects
+  // the actual amount the AI used.
   const pantryItems: ShoppingListItem[] = Object.entries(clampedPantryUsage).map(([name, usage]) => {
     const cost = computeIngredientCost(`${usage.usedQty} ${usage.unit} ${name}`);
+    const budget = pantryMap[name];
+    const useDisplayOverride = budget?.fromHouseholdSize === true;
+    const displayQty = useDisplayOverride ? budget.displayQty : usage.usedQty;
+    const displayUnit = useDisplayOverride ? budget.displayUnit : usage.unit;
     return {
-      name: `${usage.usedQty} ${usage.unit} ${name}`,
+      name: `${displayQty} ${displayUnit} ${name}`,
       normalizedName: name,
-      qty: usage.usedQty,
-      unit: usage.unit,
+      qty: displayQty,
+      unit: displayUnit,
       cost,
       costMin: Math.floor(cost * 0.9 * 100) / 100,
       costMax: Math.ceil(cost * 1.1 * 100) / 100,
@@ -399,13 +438,14 @@ export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): Enf
   // 4b. Also include any user-declared pantry items the AI didn't use, so the
   //     Pantry list on the plan page always reflects what the user said they
   //     have on hand. These contribute $0 (no savings — they weren't used).
+  //     Always show the original declared qty/unit here.
   for (const [name, budget] of Object.entries(pantryMap)) {
     if (clampedPantryUsage[name]) continue; // already included via usage
     pantryItems.push({
-      name: `${budget.maxQty} ${budget.unit} ${name}`,
+      name: `${budget.displayQty} ${budget.displayUnit} ${name}`,
       normalizedName: name,
-      qty: budget.maxQty,
-      unit: budget.unit,
+      qty: budget.displayQty,
+      unit: budget.displayUnit,
       cost: 0,
       costMin: 0,
       costMax: 0,
