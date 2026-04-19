@@ -1,4 +1,4 @@
-import { computeIngredientCost, parseIngredient, convertQty, CONTAINER_CONVERSIONS } from './priceMap';
+import { computeIngredientCost, parseIngredient, convertQty, CONTAINER_CONVERSIONS, HOUSEHOLD_UNIT_SIZES } from './priceMap';
 
 export type IngredientSource = "pantry" | "grocery";
 
