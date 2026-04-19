@@ -30,8 +30,11 @@ function parseShoppingItem(item: ShoppingListItem) {
   const unitSingular = rawUnit.endsWith("s") ? rawUnit.slice(0, -1) : rawUnit;
   const unitIsBaseNoun =
     rawUnit !== "" && (rawUnit === base || unitSingular === baseSingular);
+  // Generic placeholder units that aren't meaningful to users (e.g. "1 unit
+  // garlic", "2 units onion"). Treat them the same as "each" — drop the word.
+  const GENERIC_UNITS = new Set(["each", "unit", "units", "piece", "pieces", "item", "items", "whole", "count"]);
   const normalizedUnit =
-    rawUnit === "each" || unitIsBaseNoun ? "" : item.unit;
+    GENERIC_UNITS.has(rawUnit) || unitIsBaseNoun ? "" : item.unit;
   return {
     qty: item.qty,
     unit: normalizedUnit,
