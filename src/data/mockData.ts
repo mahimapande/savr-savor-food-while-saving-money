@@ -412,14 +412,22 @@ export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): Enf
     }
   }
 
-  // 4. Rebuild pantryItems from clamped usage
+  // 4. Rebuild pantryItems from clamped usage.
+  // For ingredients whose budget came from a household-size expansion
+  // (e.g. user typed "1 butter" → 8 tbsp internally), display the user's
+  // original phrasing instead of the recipe-derived unit. Cost still reflects
+  // the actual amount the AI used.
   const pantryItems: ShoppingListItem[] = Object.entries(clampedPantryUsage).map(([name, usage]) => {
     const cost = computeIngredientCost(`${usage.usedQty} ${usage.unit} ${name}`);
+    const budget = pantryMap[name];
+    const useDisplayOverride = budget?.fromHouseholdSize === true;
+    const displayQty = useDisplayOverride ? budget.displayQty : usage.usedQty;
+    const displayUnit = useDisplayOverride ? budget.displayUnit : usage.unit;
     return {
-      name: `${usage.usedQty} ${usage.unit} ${name}`,
+      name: `${displayQty} ${displayUnit} ${name}`,
       normalizedName: name,
-      qty: usage.usedQty,
-      unit: usage.unit,
+      qty: displayQty,
+      unit: displayUnit,
       cost,
       costMin: Math.floor(cost * 0.9 * 100) / 100,
       costMax: Math.ceil(cost * 1.1 * 100) / 100,
@@ -430,13 +438,14 @@ export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): Enf
   // 4b. Also include any user-declared pantry items the AI didn't use, so the
   //     Pantry list on the plan page always reflects what the user said they
   //     have on hand. These contribute $0 (no savings — they weren't used).
+  //     Always show the original declared qty/unit here.
   for (const [name, budget] of Object.entries(pantryMap)) {
     if (clampedPantryUsage[name]) continue; // already included via usage
     pantryItems.push({
-      name: `${budget.maxQty} ${budget.unit} ${name}`,
+      name: `${budget.displayQty} ${budget.displayUnit} ${name}`,
       normalizedName: name,
-      qty: budget.maxQty,
-      unit: budget.unit,
+      qty: budget.displayQty,
+      unit: budget.displayUnit,
       cost: 0,
       costMin: 0,
       costMax: 0,
