@@ -40,8 +40,24 @@ describe("buildPantryMap", () => {
   });
 
   it("handles bare ingredient names with no qty", () => {
+    // "olive oil" has a household-size mapping (1 each = 32 tbsp), so the
+    // internal budget is expanded for clamping math while displayQty stays 1.
     const map = buildPantryMap(["olive oil"]);
-    expect(map["olive oil"].maxQty).toBe(1);
+    expect(map["olive oil"].maxQty).toBe(32);
+    expect(map["olive oil"].unit).toBe("tbsp");
+    expect(map["olive oil"].displayQty).toBe(1);
+    expect(map["olive oil"].displayUnit).toBe("each");
+    expect(map["olive oil"].fromHouseholdSize).toBe(true);
+  });
+
+  it("preserves declared display values for ingredients without household sizes", () => {
+    // No household mapping for "carrots" — display values match raw input.
+    const map = buildPantryMap(["3 carrots"]);
+    expect(map["carrot"].maxQty).toBe(3);
+    expect(map["carrot"].unit).toBe("each");
+    expect(map["carrot"].displayQty).toBe(3);
+    expect(map["carrot"].displayUnit).toBe("each");
+    expect(map["carrot"].fromHouseholdSize).toBe(false);
   });
 });
 
