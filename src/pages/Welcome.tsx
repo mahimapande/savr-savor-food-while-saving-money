@@ -10,7 +10,7 @@ const Welcome = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-md flex flex-col items-center text-center">
-          <span className="text-lg font-semibold tracking-tight text-foreground mb-5">
+          <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground mb-6">
             Savr
           </span>
           <div className="h-14 w-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-8">
