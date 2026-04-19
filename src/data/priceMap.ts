@@ -274,6 +274,32 @@ export const CONTAINER_CONVERSIONS: Record<string, { toUnit: string; factor: num
   dozen:  { toUnit: "each", factor: 12 },    // 1 dozen = 12 each
 };
 
+/**
+ * Household-unit sizes for common pantry staples.
+ * When the user declares a pantry item with no explicit unit (e.g. "1 butter"),
+ * we treat 1 "each" as one typical household package and convert to the
+ * canonical unit used in recipes — for budget math only. The pantry display
+ * still shows the user's original phrasing (e.g. "1 butter").
+ *
+ * Map key = normalized ingredient base name.
+ */
+export const HOUSEHOLD_UNIT_SIZES: Record<string, { unit: string; qtyPerEach: number }> = {
+  butter:        { unit: "tbsp", qtyPerEach: 8 },     // 1 stick = 8 tbsp
+  milk:          { unit: "cup",  qtyPerEach: 16 },    // 1 gallon = 16 cups
+  yogurt:        { unit: "cup",  qtyPerEach: 4 },     // 1 large tub ≈ 4 cups
+  "olive oil":   { unit: "tbsp", qtyPerEach: 32 },    // 1 bottle ≈ 16 fl oz
+  "soy sauce":   { unit: "tbsp", qtyPerEach: 20 },    // 1 bottle ≈ 10 fl oz
+  honey":        { unit: "tbsp", qtyPerEach: 24 },    // 1 jar ≈ 12 fl oz
+  tahini:        { unit: "tbsp", qtyPerEach: 32 },    // 1 jar ≈ 16 oz
+  "almond butter": { unit: "tbsp", qtyPerEach: 32 },
+  hummus:        { unit: "tbsp", qtyPerEach: 20 },    // 1 tub ≈ 10 oz
+  rice:          { unit: "cup",  qtyPerEach: 10 },    // 1 bag ≈ 2 lb ≈ 10 cups
+  pasta:         { unit: "oz",   qtyPerEach: 16 },    // 1 box = 1 lb
+  flour:         { unit: "cup",  qtyPerEach: 18 },    // 1 5-lb bag ≈ 18 cups
+  sugar:         { unit: "cup",  qtyPerEach: 9 },     // 1 4-lb bag ≈ 9 cups
+};
+
+
 function normalizeUnit(raw: string): string {
   const lower = raw.toLowerCase().trim();
   return UNIT_ALIASES[lower] || lower;
