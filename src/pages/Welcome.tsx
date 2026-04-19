@@ -30,7 +30,7 @@ const Welcome = () => {
             <ul className="space-y-3 text-sm text-foreground">
               <li className="flex items-center gap-3">
                 <Wallet className="h-4 w-4 text-muted-foreground" />
-                Your weekly budget
+                Weekly budget
               </li>
               <li className="flex items-center gap-3">
                 <Leaf className="h-4 w-4 text-muted-foreground" />
@@ -38,29 +38,18 @@ const Welcome = () => {
               </li>
               <li className="flex items-center gap-3">
                 <Globe2 className="h-4 w-4 text-muted-foreground" />
-                Cuisines you enjoy
+                Cuisines you want this week
               </li>
               <li className="flex items-center gap-3">
                 <Package className="h-4 w-4 text-muted-foreground" />
-                What's already in your pantry
+                Pantry items on hand
               </li>
             </ul>
           </div>
 
-          <p className="mt-8 text-sm text-muted-foreground">
-            Next, you'll enter a few preferences to generate your plan.
-          </p>
-
-          <Button onClick={start} size="lg" className="mt-6 w-full h-12 text-base">
+          <Button onClick={start} size="lg" className="mt-8 w-full h-12 text-base">
             Start planning
           </Button>
-
-          <button
-            onClick={start}
-            className="mt-4 text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition-colors"
-          >
-            Skip intro
-          </button>
         </div>
       </main>
     </div>
