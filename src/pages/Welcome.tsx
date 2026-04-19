@@ -17,7 +17,7 @@ const Welcome = () => {
             <UtensilsCrossed className="h-7 w-7" />
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight">
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground leading-snug">
             Plan your week of meals with less stress
           </h1>
 
