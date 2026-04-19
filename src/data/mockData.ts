@@ -396,6 +396,23 @@ export function enforcePantryLimits(plan: PlanData, pantryInputs: string[]): Enf
     };
   });
 
+  // 4b. Also include any user-declared pantry items the AI didn't use, so the
+  //     Pantry list on the plan page always reflects what the user said they
+  //     have on hand. These contribute $0 (no savings — they weren't used).
+  for (const [name, budget] of Object.entries(pantryMap)) {
+    if (clampedPantryUsage[name]) continue; // already included via usage
+    pantryItems.push({
+      name: `${budget.maxQty} ${budget.unit} ${name}`,
+      normalizedName: name,
+      qty: budget.maxQty,
+      unit: budget.unit,
+      cost: 0,
+      costMin: 0,
+      costMax: 0,
+      costLikely: 0,
+    });
+  }
+
   // 5. Recalculate metrics from finalized shopping list
   const allShoppingItems = [
     ...newLists.produce, ...newLists.dairy, ...newLists.plantBased,
