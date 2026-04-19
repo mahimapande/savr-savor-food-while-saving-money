@@ -19,9 +19,22 @@ const WEEKLY_PLAN_KEY = "weeklyPlan";
 const COOKED_MEALS_KEY = "savr-cooked-meals";
 
 function parseShoppingItem(item: ShoppingListItem) {
+  // Some upstream paths (notably the LLM) occasionally return a `unit` that is
+  // actually the ingredient noun itself, e.g. { qty: 6, unit: "eggs",
+  // normalizedName: "eggs" } or { qty: 2, unit: "bananas", normalizedName:
+  // "banana" }. Rendering that naively produces "6 eggs eggs". Treat any unit
+  // that matches (or is a simple plural of) the base name as "no unit".
+  const rawUnit = (item.unit || "").toLowerCase().trim();
+  const base = (item.normalizedName || "").toLowerCase().trim();
+  const baseSingular = base.endsWith("s") ? base.slice(0, -1) : base;
+  const unitSingular = rawUnit.endsWith("s") ? rawUnit.slice(0, -1) : rawUnit;
+  const unitIsBaseNoun =
+    rawUnit !== "" && (rawUnit === base || unitSingular === baseSingular);
+  const normalizedUnit =
+    rawUnit === "each" || unitIsBaseNoun ? "" : item.unit;
   return {
     qty: item.qty,
-    unit: item.unit === "each" ? "" : item.unit,
+    unit: normalizedUnit,
     base: item.normalizedName,
     originalName: item.name,
     cost: item.cost,
