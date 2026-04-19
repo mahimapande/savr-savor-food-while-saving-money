@@ -56,11 +56,17 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
   }
 
   return [...groups.values()].map((g) => {
+    const qtyStr = g.qty % 1 === 0 ? `${g.qty}` : g.qty.toFixed(1);
     let displayName: string;
     if (g.unit) {
-      displayName = `${g.qty % 1 === 0 ? g.qty : g.qty.toFixed(1)} ${g.unit} ${g.base}`;
+      // Real unit (cups, oz, tbsp, sticks, etc.) — pluralize sticks for >1
+      let unit = g.unit;
+      if (unit === "stick" && g.qty > 1) unit = "sticks";
+      displayName = `${qtyStr} ${unit} ${g.base}`;
     } else {
-      displayName = g.originalNames[0];
+      // No real unit (originally "each") — show "{qty} {base}" cleanly,
+      // dropping the awkward "each" wording. e.g. "6 eggs", "1 butter".
+      displayName = `${qtyStr} ${g.base}`;
     }
     return {
       displayName,
