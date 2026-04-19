@@ -289,7 +289,7 @@ export const HOUSEHOLD_UNIT_SIZES: Record<string, { unit: string; qtyPerEach: nu
   yogurt:        { unit: "cup",  qtyPerEach: 4 },     // 1 large tub ≈ 4 cups
   "olive oil":   { unit: "tbsp", qtyPerEach: 32 },    // 1 bottle ≈ 16 fl oz
   "soy sauce":   { unit: "tbsp", qtyPerEach: 20 },    // 1 bottle ≈ 10 fl oz
-  honey":        { unit: "tbsp", qtyPerEach: 24 },    // 1 jar ≈ 12 fl oz
+  "honey":       { unit: "tbsp", qtyPerEach: 24 },    // 1 jar ≈ 12 fl oz
   tahini:        { unit: "tbsp", qtyPerEach: 32 },    // 1 jar ≈ 16 oz
   "almond butter": { unit: "tbsp", qtyPerEach: 32 },
   hummus:        { unit: "tbsp", qtyPerEach: 20 },    // 1 tub ≈ 10 oz
