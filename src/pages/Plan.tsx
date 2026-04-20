@@ -150,7 +150,7 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
   }
 
   return [...groups.values()].map((g) => {
-    const qtyStr = g.qty % 1 === 0 ? `${g.qty}` : g.qty.toFixed(1);
+    const qtyStr = formatQty(g.qty);
     let displayName: string;
     if (g.unit) {
       // Real unit (cups, oz, tbsp, sticks, etc.) — pluralize sticks for >1
@@ -158,9 +158,18 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
       if (unit === "stick" && g.qty > 1) unit = "sticks";
       displayName = `${qtyStr} ${unit} ${g.base}`;
     } else {
-      // No real unit (originally "each") — show "{qty} {base}" cleanly,
-      // dropping the awkward "each" wording. e.g. "6 eggs", "1 butter".
-      displayName = `${qtyStr} ${g.base}`;
+      // No real unit (originally "each" or converted-from-cups produce) —
+      // show "{qty} {base}" cleanly. Pluralize countable produce when >1.
+      let base = g.base;
+      const baseLower = base.toLowerCase();
+      if (
+        g.qty > 1 &&
+        COUNTABLE_PRODUCE.has(baseLower) &&
+        !baseLower.endsWith("s")
+      ) {
+        base = base + "s";
+      }
+      displayName = `${qtyStr} ${base}`;
     }
     return {
       displayName,
