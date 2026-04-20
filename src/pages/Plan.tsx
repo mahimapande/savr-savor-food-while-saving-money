@@ -166,6 +166,7 @@ interface ConsolidatedItem {
 }
 
 function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
+  // Inline helper kept here since it's only used in display.
   const groups = new Map<string, { qty: number; unit: string; base: string; cost: number; originalNames: string[] }>();
 
   for (const item of items) {
