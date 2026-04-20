@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,6 @@ const PANTRY_DEFAULTS = [
 ];
 const WEEKLY_PLAN_KEY = "weeklyPlan";
 const HAVE_STORAGE_KEY = "savr-have-items";
-const FORM_INPUTS_KEY = "formInputs";
 
 const normalizeDefaultPantryEntry = (name: string, amount: string): string => {
   const trimmedAmount = amount.trim();
@@ -124,54 +123,13 @@ const Index = () => {
   const [pantryAmounts, setPantryAmounts] = useState<Record<string, string>>({});
   const [customPantry, setCustomPantry] = useState("");
   const [customPantryError, setCustomPantryError] = useState<string | null>(null);
-  const [restoredBareItems, setRestoredBareItems] = useState<string[]>([]);
+  
   const [preference, setPreference] = useState("balanced");
 
-  // On mount: if a prior formInputs is in localStorage, restore pantry items
-  // and surface ones missing a quantity so the user can fix them before
-  // regenerating.
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(FORM_INPUTS_KEY);
-      if (!raw) return;
-      const prev = JSON.parse(raw) as Partial<FormInputs>;
-      const items = Array.isArray(prev.pantryItems) ? prev.pantryItems : [];
-      if (items.length === 0) return;
+  // Pantry items intentionally start empty on every visit. Users must check
+  // the item AND enter a fresh quantity — no prefill from previous sessions,
+  // since stale amounts (e.g. "6 eggs" from last week) are misleading.
 
-      const bare: string[] = [];
-      const nextChecked = new Set<string>();
-      const nextAmounts: Record<string, string> = {};
-
-      for (const rawItem of items) {
-        const s = String(rawItem).trim();
-        if (!s) continue;
-        const isDefault = PANTRY_DEFAULTS.find(
-          (d) =>
-            s.toLowerCase() === d.name.toLowerCase() ||
-            s.toLowerCase().endsWith(" " + d.name.toLowerCase())
-        );
-        if (isDefault) {
-          nextChecked.add(isDefault.name);
-          const qtyPart =
-            s.toLowerCase() === isDefault.name.toLowerCase()
-              ? ""
-              : s.slice(0, s.toLowerCase().lastIndexOf(isDefault.name.toLowerCase())).trim();
-          nextAmounts[isDefault.name] = qtyPart;
-          if (!hasQuantity(qtyPart)) bare.push(isDefault.name);
-        } else {
-          nextChecked.add(s);
-          nextAmounts[s] = s;
-          if (!hasQuantity(s)) bare.push(s);
-        }
-      }
-
-      if (nextChecked.size > 0) {
-        setPantryChecked(nextChecked);
-        setPantryAmounts(nextAmounts);
-        setRestoredBareItems(bare);
-      }
-    } catch { /* ignore */ }
-  }, []);
 
   const toggleCuisine = (c: string) => {
     setCuisines((prev) =>
@@ -200,10 +158,6 @@ const Index = () => {
 
   const updateAmount = (name: string, value: string) => {
     setPantryAmounts((prev) => ({ ...prev, [name]: value }));
-    // Clear the "needs fixing" warning for this item once a quantity appears
-    if (hasQuantity(value)) {
-      setRestoredBareItems((prev) => prev.filter((n) => n !== name));
-    }
   };
 
   const addCustomPantry = () => {
@@ -559,12 +513,6 @@ const Index = () => {
               <span className="font-medium">2 cups rice</span>.
             </p>
 
-            {restoredBareItems.length > 0 && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-                These saved items are missing a quantity. Please add one before regenerating:{" "}
-                <span className="font-medium">{restoredBareItems.join(", ")}</span>.
-              </div>
-            )}
 
             <div className="space-y-3">
               {PANTRY_DEFAULTS.map((item) => {
@@ -626,7 +574,7 @@ const Index = () => {
                             delete next[name];
                             return next;
                           });
-                          setRestoredBareItems((prev) => prev.filter((n) => n !== name));
+                          
                         }}
                       >
                         {name}
