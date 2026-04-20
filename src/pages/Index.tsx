@@ -183,19 +183,33 @@ const Index = () => {
 
   const updateAmount = (name: string, value: string) => {
     setPantryAmounts((prev) => ({ ...prev, [name]: value }));
+    // Clear the "needs fixing" warning for this item once a quantity appears
+    if (hasQuantity(value)) {
+      setRestoredBareItems((prev) => prev.filter((n) => n !== name));
+    }
   };
 
   const addCustomPantry = () => {
     const trimmed = customPantry.trim();
     if (!trimmed) return;
-    // Store the full string directly (e.g. "3 tomatoes") — no separate amount needed
-    const alreadyExists = [...pantryChecked].some((p) => p.toLowerCase() === trimmed.toLowerCase())
-      || PANTRY_DEFAULTS.some((d) => d.name.toLowerCase() === trimmed.toLowerCase());
+    if (!hasQuantity(trimmed)) {
+      const lastWord = trimmed.split(/\s+/).pop() || trimmed;
+      const hint = unitHintFor(trimmed) || unitHintFor(lastWord);
+      setCustomPantryError(
+        hint
+          ? `Add a quantity (e.g. "2 ${hint} ${trimmed}").`
+          : `Add a quantity (e.g. "2 ${trimmed}", "1 cup ${trimmed}").`
+      );
+      return;
+    }
+    const alreadyExists =
+      [...pantryChecked].some((p) => p.toLowerCase() === trimmed.toLowerCase()) ||
+      PANTRY_DEFAULTS.some((d) => d.name.toLowerCase() === trimmed.toLowerCase());
     if (!alreadyExists) {
       setPantryChecked((prev) => new Set(prev).add(trimmed));
-      // Put the full string into amounts so buildPantryItems uses it as-is
       setPantryAmounts((prev) => ({ ...prev, [trimmed]: trimmed }));
       setCustomPantry("");
+      setCustomPantryError(null);
     }
   };
 
