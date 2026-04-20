@@ -230,8 +230,25 @@ const Index = () => {
 
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Compute which checked pantry items are missing a quantity (used to block
+  // submit and to render inline errors).
+  const invalidPantryNames: string[] = [...pantryChecked].filter((name) => {
+    const isDefault = PANTRY_DEFAULTS.some((d) => d.name === name);
+    const value = isDefault ? (pantryAmounts[name] || "") : (pantryAmounts[name] || name);
+    return !hasQuantity(value);
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (invalidPantryNames.length > 0) {
+      toast({
+        title: "Add a quantity to each pantry item",
+        description: `Missing quantity for: ${invalidPantryNames.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     const totalMeals = mealCounts.breakfast + mealCounts.lunch + mealCounts.dinner + mealCounts.snack;
     const inputs: FormInputs = {
