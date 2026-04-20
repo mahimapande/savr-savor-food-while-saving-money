@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,32 @@ const PANTRY_DEFAULTS = [
 ];
 const WEEKLY_PLAN_KEY = "weeklyPlan";
 const HAVE_STORAGE_KEY = "savr-have-items";
+const FORM_INPUTS_KEY = "formInputs";
+
+// A pantry value must start with a number (integer or decimal, optional fraction).
+// Examples accepted: "6", "6 eggs", "1.5 cups rice", "1/2 lb pasta".
+const QTY_PATTERN = /^\s*(\d+(\.\d+)?|\d+\/\d+)(\s|$)/;
+const hasQuantity = (s: string): boolean => QTY_PATTERN.test(s);
+
+// Suggest a likely unit for known bare ingredient nouns (best-effort hint only).
+const UNIT_HINTS: Record<string, string> = {
+  eggs: "large", egg: "large",
+  milk: "gallon", butter: "stick", bread: "loaf",
+  rice: "cup", pasta: "lb", flour: "cup", sugar: "cup",
+  oil: "tbsp", "olive oil": "tbsp",
+  cheese: "oz", yogurt: "cup",
+  onion: "each", onions: "each", tomato: "each", tomatoes: "each",
+  garlic: "clove", potato: "each", potatoes: "each",
+  carrot: "each", carrots: "each", lemon: "each", lemons: "each",
+  avocado: "each", avocados: "each", banana: "each", bananas: "each",
+};
+const unitHintFor = (name: string): string | null => {
+  const key = name.trim().toLowerCase();
+  if (UNIT_HINTS[key]) return UNIT_HINTS[key];
+  // Try last word (e.g. "fresh basil" → "basil")
+  const last = key.split(/\s+/).pop() || "";
+  return UNIT_HINTS[last] || null;
+};
 
 const Index = () => {
   const navigate = useNavigate();
@@ -80,7 +106,55 @@ const Index = () => {
   const [pantryChecked, setPantryChecked] = useState<Set<string>>(new Set());
   const [pantryAmounts, setPantryAmounts] = useState<Record<string, string>>({});
   const [customPantry, setCustomPantry] = useState("");
+  const [customPantryError, setCustomPantryError] = useState<string | null>(null);
+  const [restoredBareItems, setRestoredBareItems] = useState<string[]>([]);
   const [preference, setPreference] = useState("balanced");
+
+  // On mount: if a prior formInputs is in localStorage, restore pantry items
+  // and surface ones missing a quantity so the user can fix them before
+  // regenerating.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(FORM_INPUTS_KEY);
+      if (!raw) return;
+      const prev = JSON.parse(raw) as Partial<FormInputs>;
+      const items = Array.isArray(prev.pantryItems) ? prev.pantryItems : [];
+      if (items.length === 0) return;
+
+      const bare: string[] = [];
+      const nextChecked = new Set<string>();
+      const nextAmounts: Record<string, string> = {};
+
+      for (const rawItem of items) {
+        const s = String(rawItem).trim();
+        if (!s) continue;
+        const isDefault = PANTRY_DEFAULTS.find(
+          (d) =>
+            s.toLowerCase() === d.name.toLowerCase() ||
+            s.toLowerCase().endsWith(" " + d.name.toLowerCase())
+        );
+        if (isDefault) {
+          nextChecked.add(isDefault.name);
+          const qtyPart =
+            s.toLowerCase() === isDefault.name.toLowerCase()
+              ? ""
+              : s.slice(0, s.toLowerCase().lastIndexOf(isDefault.name.toLowerCase())).trim();
+          nextAmounts[isDefault.name] = qtyPart;
+          if (!hasQuantity(qtyPart)) bare.push(isDefault.name);
+        } else {
+          nextChecked.add(s);
+          nextAmounts[s] = s;
+          if (!hasQuantity(s)) bare.push(s);
+        }
+      }
+
+      if (nextChecked.size > 0) {
+        setPantryChecked(nextChecked);
+        setPantryAmounts(nextAmounts);
+        setRestoredBareItems(bare);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const toggleCuisine = (c: string) => {
     setCuisines((prev) =>
@@ -109,19 +183,33 @@ const Index = () => {
 
   const updateAmount = (name: string, value: string) => {
     setPantryAmounts((prev) => ({ ...prev, [name]: value }));
+    // Clear the "needs fixing" warning for this item once a quantity appears
+    if (hasQuantity(value)) {
+      setRestoredBareItems((prev) => prev.filter((n) => n !== name));
+    }
   };
 
   const addCustomPantry = () => {
     const trimmed = customPantry.trim();
     if (!trimmed) return;
-    // Store the full string directly (e.g. "3 tomatoes") — no separate amount needed
-    const alreadyExists = [...pantryChecked].some((p) => p.toLowerCase() === trimmed.toLowerCase())
-      || PANTRY_DEFAULTS.some((d) => d.name.toLowerCase() === trimmed.toLowerCase());
+    if (!hasQuantity(trimmed)) {
+      const lastWord = trimmed.split(/\s+/).pop() || trimmed;
+      const hint = unitHintFor(trimmed) || unitHintFor(lastWord);
+      setCustomPantryError(
+        hint
+          ? `Add a quantity (e.g. "2 ${hint} ${trimmed}").`
+          : `Add a quantity (e.g. "2 ${trimmed}", "1 cup ${trimmed}").`
+      );
+      return;
+    }
+    const alreadyExists =
+      [...pantryChecked].some((p) => p.toLowerCase() === trimmed.toLowerCase()) ||
+      PANTRY_DEFAULTS.some((d) => d.name.toLowerCase() === trimmed.toLowerCase());
     if (!alreadyExists) {
       setPantryChecked((prev) => new Set(prev).add(trimmed));
-      // Put the full string into amounts so buildPantryItems uses it as-is
       setPantryAmounts((prev) => ({ ...prev, [trimmed]: trimmed }));
       setCustomPantry("");
+      setCustomPantryError(null);
     }
   };
 
@@ -142,8 +230,25 @@ const Index = () => {
 
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Compute which checked pantry items are missing a quantity (used to block
+  // submit and to render inline errors).
+  const invalidPantryNames: string[] = [...pantryChecked].filter((name) => {
+    const isDefault = PANTRY_DEFAULTS.some((d) => d.name === name);
+    const value = isDefault ? (pantryAmounts[name] || "") : (pantryAmounts[name] || name);
+    return !hasQuantity(value);
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (invalidPantryNames.length > 0) {
+      toast({
+        title: "Add a quantity to each pantry item",
+        description: `Missing quantity for: ${invalidPantryNames.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     const totalMeals = mealCounts.breakfast + mealCounts.lunch + mealCounts.dinner + mealCounts.snack;
     const inputs: FormInputs = {
@@ -431,70 +536,109 @@ const Index = () => {
           {/* Pantry */}
           <div className="space-y-3">
             <Label>Pantry items on hand</Label>
+            <p className="text-xs text-muted-foreground">
+              Include a quantity for each item — e.g. <span className="font-medium">12 eggs</span>,{" "}
+              <span className="font-medium">1 lb pasta</span>,{" "}
+              <span className="font-medium">2 cups rice</span>.
+            </p>
+
+            {restoredBareItems.length > 0 && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                These saved items are missing a quantity. Please add one before regenerating:{" "}
+                <span className="font-medium">{restoredBareItems.join(", ")}</span>.
+              </div>
+            )}
+
             <div className="space-y-3">
-              {PANTRY_DEFAULTS.map((item) => (
-                <div key={item.name} className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={`pantry-${item.name}`}
-                      checked={pantryChecked.has(item.name)}
-                      onCheckedChange={() => togglePantry(item.name)}
-                    />
-                    <Label htmlFor={`pantry-${item.name}`} className="font-normal">
-                      {item.name}
-                    </Label>
+              {PANTRY_DEFAULTS.map((item) => {
+                const checked = pantryChecked.has(item.name);
+                const value = pantryAmounts[item.name] || "";
+                const showError = checked && !hasQuantity(value);
+                return (
+                  <div key={item.name} className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`pantry-${item.name}`}
+                        checked={checked}
+                        onCheckedChange={() => togglePantry(item.name)}
+                      />
+                      <Label htmlFor={`pantry-${item.name}`} className="font-normal">
+                        {item.name}
+                      </Label>
+                    </div>
+                    {checked && (
+                      <div className="ml-6 space-y-1">
+                        <Input
+                          placeholder={item.placeholder}
+                          value={value}
+                          onChange={(e) => updateAmount(item.name, e.target.value)}
+                          className={`max-w-xs text-sm h-8 ${showError ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          aria-invalid={showError}
+                        />
+                        {showError && (
+                          <p className="text-xs text-destructive">
+                            Add a quantity ({item.placeholder.replace(/^e\.g\.\s*/i, "")}).
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {pantryChecked.has(item.name) && (
-                    <Input
-                      placeholder={item.placeholder}
-                      value={pantryAmounts[item.name] || ""}
-                      onChange={(e) => updateAmount(item.name, e.target.value)}
-                      className="ml-6 max-w-xs text-sm h-8"
-                    />
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
             {/* Custom items shown as removable badges */}
             {[...pantryChecked].filter((name) => !PANTRY_DEFAULTS.some((d) => d.name === name)).length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {[...pantryChecked]
                   .filter((name) => !PANTRY_DEFAULTS.some((d) => d.name === name))
-                  .map((name) => (
-                    <Badge
-                      key={name}
-                      variant="default"
-                      className="cursor-pointer select-none px-3 py-1.5 text-sm"
-                      onClick={() => {
-                        setPantryChecked((prev) => {
-                          const next = new Set(prev);
-                          next.delete(name);
-                          return next;
-                        });
-                        setPantryAmounts((prev) => {
-                          const next = { ...prev };
-                          delete next[name];
-                          return next;
-                        });
-                      }}
-                    >
-                      {name}
-                      <X className="ml-1 h-3 w-3" />
-                    </Badge>
-                  ))}
+                  .map((name) => {
+                    const isInvalid = !hasQuantity(name);
+                    return (
+                      <Badge
+                        key={name}
+                        variant={isInvalid ? "destructive" : "default"}
+                        className="cursor-pointer select-none px-3 py-1.5 text-sm"
+                        onClick={() => {
+                          setPantryChecked((prev) => {
+                            const next = new Set(prev);
+                            next.delete(name);
+                            return next;
+                          });
+                          setPantryAmounts((prev) => {
+                            const next = { ...prev };
+                            delete next[name];
+                            return next;
+                          });
+                          setRestoredBareItems((prev) => prev.filter((n) => n !== name));
+                        }}
+                      >
+                        {name}
+                        <X className="ml-1 h-3 w-3" />
+                      </Badge>
+                    );
+                  })}
               </div>
             )}
-            <div className="flex gap-2">
-              <Input
-                placeholder="e.g. 3 tomatoes, 1 cup rice"
-                value={customPantry}
-                onChange={(e) => setCustomPantry(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomPantry())}
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="icon" onClick={addCustomPantry}>
-                <Plus className="h-4 w-4" />
-              </Button>
+            <div className="space-y-1">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="e.g. 3 tomatoes, 1 cup rice"
+                  value={customPantry}
+                  onChange={(e) => {
+                    setCustomPantry(e.target.value);
+                    if (customPantryError) setCustomPantryError(null);
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomPantry())}
+                  className={`flex-1 ${customPantryError ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                  aria-invalid={!!customPantryError}
+                />
+                <Button type="button" variant="outline" size="icon" onClick={addCustomPantry}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {customPantryError && (
+                <p className="text-xs text-destructive">{customPantryError}</p>
+              )}
             </div>
           </div>
 
