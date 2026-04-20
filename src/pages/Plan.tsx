@@ -18,6 +18,69 @@ const HAVE_STORAGE_KEY = "savr-have-items";
 const WEEKLY_PLAN_KEY = "weeklyPlan";
 const COOKED_MEALS_KEY = "savr-cooked-meals";
 
+// Countable produce that's awkward when measured in cups. If a recipe says
+// "1.8 cup cucumber", users would rather see "2 cucumbers" on a shopping list.
+const COUNTABLE_PRODUCE = new Set([
+  "cucumber", "cucumbers",
+  "bell pepper", "bell peppers", "pepper", "peppers",
+  "onion", "onions", "shallot", "shallots",
+  "tomato", "tomatoes",
+  "avocado", "avocados",
+  "lemon", "lemons", "lime", "limes", "orange", "oranges",
+  "apple", "apples", "pear", "pears", "banana", "bananas",
+  "carrot", "carrots", "potato", "potatoes", "sweet potato", "sweet potatoes",
+  "zucchini", "zucchinis", "eggplant", "eggplants",
+  "jalapeno", "jalapenos", "jalapeño", "jalapeños",
+  "corn", "ear of corn", "ears of corn",
+]);
+const CUP_UNITS = new Set(["cup", "cups"]);
+
+// Vulgar-fraction renderer. Snaps to common cookbook fractions (1/8 grid)
+// and falls back to one-decimal if a quantity doesn't fit cleanly.
+const FRACTION_GLYPHS: Record<string, string> = {
+  "1/8": "⅛", "1/4": "¼", "1/3": "⅓", "3/8": "⅜",
+  "1/2": "½", "5/8": "⅝", "2/3": "⅔", "3/4": "¾", "7/8": "⅞",
+};
+const SNAP_FRACTIONS: { value: number; label: string }[] = [
+  { value: 0,     label: "" },
+  { value: 1/8,   label: "1/8" },
+  { value: 1/4,   label: "1/4" },
+  { value: 1/3,   label: "1/3" },
+  { value: 3/8,   label: "3/8" },
+  { value: 1/2,   label: "1/2" },
+  { value: 5/8,   label: "5/8" },
+  { value: 2/3,   label: "2/3" },
+  { value: 3/4,   label: "3/4" },
+  { value: 7/8,   label: "7/8" },
+  { value: 1,     label: "" }, // rolls into the whole part
+];
+function formatQty(qty: number): string {
+  if (!isFinite(qty) || qty <= 0) return "0";
+  const whole = Math.floor(qty);
+  const frac = qty - whole;
+  // Snap to nearest common fraction
+  let best = SNAP_FRACTIONS[0];
+  let bestDist = Infinity;
+  for (const f of SNAP_FRACTIONS) {
+    const d = Math.abs(f.value - frac);
+    if (d < bestDist) { bestDist = d; best = f; }
+  }
+  // If snapping is far off (>0.06 ≈ ~1/16), fall back to one decimal place
+  if (bestDist > 0.06) {
+    return qty % 1 === 0 ? `${qty}` : qty.toFixed(1);
+  }
+  // Snapped to 1 → roll into whole
+  if (best.value === 1) {
+    return `${whole + 1}`;
+  }
+  // Snapped to 0
+  if (best.value === 0) {
+    return whole > 0 ? `${whole}` : "0";
+  }
+  const glyph = FRACTION_GLYPHS[best.label] || best.label;
+  return whole > 0 ? `${whole}${glyph}` : glyph;
+}
+
 function parseShoppingItem(item: ShoppingListItem) {
   // Some upstream paths (notably the LLM) occasionally return a `unit` that is
   // actually the ingredient noun itself, e.g. { qty: 6, unit: "eggs",
@@ -35,9 +98,24 @@ function parseShoppingItem(item: ShoppingListItem) {
   const GENERIC_UNITS = new Set(["each", "unit", "units", "piece", "pieces", "item", "items", "whole", "count"]);
   const normalizedUnit =
     GENERIC_UNITS.has(rawUnit) || unitIsBaseNoun ? "" : item.unit;
+
+  // Awkward "1.8 cup cucumber" → "2 cucumbers". For known countable produce
+  // sold as whole pieces, round up and drop the cup unit so the shopping list
+  // is intuitive.
+  let qty = item.qty;
+  let unit = normalizedUnit;
+  const baseLower = base;
+  if (
+    CUP_UNITS.has(rawUnit) &&
+    (COUNTABLE_PRODUCE.has(baseLower) || COUNTABLE_PRODUCE.has(baseSingular))
+  ) {
+    qty = Math.max(1, Math.ceil(item.qty));
+    unit = "";
+  }
+
   return {
-    qty: item.qty,
-    unit: normalizedUnit,
+    qty,
+    unit,
     base: item.normalizedName,
     originalName: item.name,
     cost: item.cost,
@@ -72,7 +150,7 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
   }
 
   return [...groups.values()].map((g) => {
-    const qtyStr = g.qty % 1 === 0 ? `${g.qty}` : g.qty.toFixed(1);
+    const qtyStr = formatQty(g.qty);
     let displayName: string;
     if (g.unit) {
       // Real unit (cups, oz, tbsp, sticks, etc.) — pluralize sticks for >1
@@ -80,9 +158,18 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
       if (unit === "stick" && g.qty > 1) unit = "sticks";
       displayName = `${qtyStr} ${unit} ${g.base}`;
     } else {
-      // No real unit (originally "each") — show "{qty} {base}" cleanly,
-      // dropping the awkward "each" wording. e.g. "6 eggs", "1 butter".
-      displayName = `${qtyStr} ${g.base}`;
+      // No real unit (originally "each" or converted-from-cups produce) —
+      // show "{qty} {base}" cleanly. Pluralize countable produce when >1.
+      let base = g.base;
+      const baseLower = base.toLowerCase();
+      if (
+        g.qty > 1 &&
+        COUNTABLE_PRODUCE.has(baseLower) &&
+        !baseLower.endsWith("s")
+      ) {
+        base = base + "s";
+      }
+      displayName = `${qtyStr} ${base}`;
     }
     return {
       displayName,
