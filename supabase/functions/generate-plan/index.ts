@@ -291,21 +291,39 @@ function buildUserMessage(inputs: Record<string, unknown>): string {
 // ---------------------------------------------------------------------------
 async function callOpenAI(
   apiKey: string,
-  messages: { role: string; content: string }[]
-): Promise<{ ok: true; plan: any } | { ok: false; status: number; error: string }> {
-  const response = await fetch(OPENAI_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      messages,
-      tools: [PLAN_TOOL],
-      tool_choice: { type: "function", function: { name: "return_meal_plan" } },
-    }),
-  });
+  messages: { role: string; content: string }[],
+  timeoutMs = 110_000
+): Promise<{ ok: true; plan: any } | { ok: false; status: number; error: string; timedOut?: boolean }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(OPENAI_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages,
+        tools: [PLAN_TOOL],
+        tool_choice: { type: "function", function: { name: "return_meal_plan" } },
+      }),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    const aborted = (e as Error)?.name === "AbortError";
+    console.error("OpenAI fetch failed:", aborted ? "timeout" : e);
+    return {
+      ok: false,
+      status: aborted ? 504 : 500,
+      error: aborted ? `OpenAI call exceeded ${timeoutMs}ms` : String(e),
+      timedOut: aborted,
+    };
+  }
+  clearTimeout(timer);
 
   if (!response.ok) {
     const errorText = await response.text();
