@@ -416,13 +416,22 @@ serve(async (req) => {
 
     let planData = attempt.plan;
     let filledSlots = Array.isArray(planData?.meals) ? planData.meals.length : 0;
-    console.log(`OpenAI returned ${filledSlots} meals (requested ${requestedSlots})`);
+    console.log(
+      `OpenAI returned ${filledSlots} meals (requested ${requestedSlots}) in ${Date.now() - startedAt}ms`
+    );
 
-    // Schedule-coverage retry: if the model under-fills, ask once more with an
-    // explicit corrective message, preserving previous constraints.
-    if (allowRetry && requestedSlots > 0 && filledSlots < requestedSlots) {
+    // Schedule-coverage retry — only if we have enough time budget left.
+    // Otherwise return the partial plan; client will retry with a fresh window.
+    const RETRY_MIN_BUDGET_MS = 30_000;
+    const shouldRetry =
+      allowRetry && requestedSlots > 0 && filledSlots < requestedSlots;
+
+    if (shouldRetry && remaining() >= RETRY_MIN_BUDGET_MS) {
       retried = true;
-      console.log(`Under-fill detected (${filledSlots}/${requestedSlots}). Issuing single retry...`);
+      console.log(
+        `Under-fill detected (${filledSlots}/${requestedSlots}). ` +
+        `Issuing single retry (${remaining()}ms left)...`
+      );
 
       const correction =
         `You returned only ${filledSlots} meals, but the user requested ` +
@@ -433,14 +442,15 @@ serve(async (req) => {
 
       const retryMessages = [
         ...messages,
-        {
-          role: "assistant",
-          content: `Returned ${filledSlots} meals (incomplete).`,
-        },
+        { role: "assistant", content: `Returned ${filledSlots} meals (incomplete).` },
         { role: "user", content: correction },
       ];
 
-      const retryAttempt = await callOpenAI(OPENAI_API_KEY, retryMessages);
+      const retryAttempt = await callOpenAI(
+        OPENAI_API_KEY,
+        retryMessages,
+        Math.max(15_000, remaining() - 5_000)
+      );
       if (retryAttempt.ok) {
         planData = retryAttempt.plan;
         filledSlots = Array.isArray(planData?.meals) ? planData.meals.length : 0;
@@ -448,6 +458,11 @@ serve(async (req) => {
       } else {
         console.warn("Retry call failed, keeping first attempt:", retryAttempt.error);
       }
+    } else if (shouldRetry) {
+      console.warn(
+        `Under-fill (${filledSlots}/${requestedSlots}) but only ${remaining()}ms left — ` +
+        `skipping server retry; client will retry with a fresh window.`
+      );
     }
 
     return new Response(
