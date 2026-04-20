@@ -56,6 +56,8 @@ const unitHintFor = (name: string): string | null => {
   const last = key.split(/\s+/).pop() || "";
   return UNIT_HINTS[last] || null;
 };
+
+const Index = () => {
   const navigate = useNavigate();
   const [budget, setBudget] = useState("");
   const [mealCounts, setMealCounts] = useState({ breakfast: 0, lunch: 0, dinner: 0, snack: 0 });
