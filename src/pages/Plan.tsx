@@ -159,6 +159,18 @@ function pluralizeIngredient(name: string): string {
   return parts.join(" ");
 }
 
+// Pluralize measurement units. Handles common English rules:
+// pinch → pinches, dash → dashes, cup → cups, tbsp/tsp stay (abbrev), oz stays.
+const INVARIANT_UNITS = new Set(["tsp", "tbsp", "oz", "lb", "ml", "g", "kg", "l"]);
+function pluralizeUnit(unit: string): string {
+  const u = unit.trim();
+  const lower = u.toLowerCase();
+  if (!u || INVARIANT_UNITS.has(lower)) return u;
+  if (lower.endsWith("s") || lower.endsWith("es")) return u;
+  if (/(ch|sh|s|x|z)$/.test(lower)) return u + "es";
+  return u + "s";
+}
+
 interface ConsolidatedItem {
   displayName: string;
   cost: number;
@@ -166,6 +178,7 @@ interface ConsolidatedItem {
 }
 
 function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
+  // Inline helper kept here since it's only used in display.
   const groups = new Map<string, { qty: number; unit: string; base: string; cost: number; originalNames: string[] }>();
 
   for (const item of items) {
@@ -193,9 +206,11 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
       // Real unit (cups, oz, tbsp, sticks, etc.) — pluralize sticks for >1
       let unit = g.unit;
       if (unit === "stick" && g.qty > 1) unit = "sticks";
+      // Pluralize the unit itself when qty > 1 (cup → cups, pinch → pinches).
+      if (g.qty > 1) unit = pluralizeUnit(unit);
       // Pluralize collective/countable nouns measured in cups/oz, e.g.
-      // "1 cup berry" → "1 cup berries", "2 cup tomato" → "2 cup tomatoes".
-      displayName = `${qtyStr} ${unit} ${pluralizeIngredient(g.base)}`;
+      // "1 cup berry" → "1 cup of berries", "2 cup tomato" → "2 cups of tomatoes".
+      displayName = `${qtyStr} ${unit} of ${pluralizeIngredient(g.base)}`;
     } else {
       // No real unit (originally "each" or converted-from-cups produce) —
       // show "{qty} {base}" cleanly. Pluralize countable produce when >1.
