@@ -156,7 +156,9 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
       // Real unit (cups, oz, tbsp, sticks, etc.) — pluralize sticks for >1
       let unit = g.unit;
       if (unit === "stick" && g.qty > 1) unit = "sticks";
-      displayName = `${qtyStr} ${unit} ${g.base}`;
+      // Pluralize collective/countable nouns measured in cups/oz, e.g.
+      // "1 cup berry" → "1 cup berries", "2 cup tomato" → "2 cup tomatoes".
+      displayName = `${qtyStr} ${unit} ${pluralizeIngredient(g.base)}`;
     } else {
       // No real unit (originally "each" or converted-from-cups produce) —
       // show "{qty} {base}" cleanly. Pluralize countable produce when >1.
