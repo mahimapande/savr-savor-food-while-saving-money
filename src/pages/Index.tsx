@@ -536,70 +536,109 @@ const Index = () => {
           {/* Pantry */}
           <div className="space-y-3">
             <Label>Pantry items on hand</Label>
+            <p className="text-xs text-muted-foreground">
+              Include a quantity for each item — e.g. <span className="font-medium">12 eggs</span>,{" "}
+              <span className="font-medium">1 lb pasta</span>,{" "}
+              <span className="font-medium">2 cups rice</span>.
+            </p>
+
+            {restoredBareItems.length > 0 && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                These saved items are missing a quantity. Please add one before regenerating:{" "}
+                <span className="font-medium">{restoredBareItems.join(", ")}</span>.
+              </div>
+            )}
+
             <div className="space-y-3">
-              {PANTRY_DEFAULTS.map((item) => (
-                <div key={item.name} className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={`pantry-${item.name}`}
-                      checked={pantryChecked.has(item.name)}
-                      onCheckedChange={() => togglePantry(item.name)}
-                    />
-                    <Label htmlFor={`pantry-${item.name}`} className="font-normal">
-                      {item.name}
-                    </Label>
+              {PANTRY_DEFAULTS.map((item) => {
+                const checked = pantryChecked.has(item.name);
+                const value = pantryAmounts[item.name] || "";
+                const showError = checked && !hasQuantity(value);
+                return (
+                  <div key={item.name} className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`pantry-${item.name}`}
+                        checked={checked}
+                        onCheckedChange={() => togglePantry(item.name)}
+                      />
+                      <Label htmlFor={`pantry-${item.name}`} className="font-normal">
+                        {item.name}
+                      </Label>
+                    </div>
+                    {checked && (
+                      <div className="ml-6 space-y-1">
+                        <Input
+                          placeholder={item.placeholder}
+                          value={value}
+                          onChange={(e) => updateAmount(item.name, e.target.value)}
+                          className={`max-w-xs text-sm h-8 ${showError ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          aria-invalid={showError}
+                        />
+                        {showError && (
+                          <p className="text-xs text-destructive">
+                            Add a quantity ({item.placeholder.replace(/^e\.g\.\s*/i, "")}).
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {pantryChecked.has(item.name) && (
-                    <Input
-                      placeholder={item.placeholder}
-                      value={pantryAmounts[item.name] || ""}
-                      onChange={(e) => updateAmount(item.name, e.target.value)}
-                      className="ml-6 max-w-xs text-sm h-8"
-                    />
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
             {/* Custom items shown as removable badges */}
             {[...pantryChecked].filter((name) => !PANTRY_DEFAULTS.some((d) => d.name === name)).length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {[...pantryChecked]
                   .filter((name) => !PANTRY_DEFAULTS.some((d) => d.name === name))
-                  .map((name) => (
-                    <Badge
-                      key={name}
-                      variant="default"
-                      className="cursor-pointer select-none px-3 py-1.5 text-sm"
-                      onClick={() => {
-                        setPantryChecked((prev) => {
-                          const next = new Set(prev);
-                          next.delete(name);
-                          return next;
-                        });
-                        setPantryAmounts((prev) => {
-                          const next = { ...prev };
-                          delete next[name];
-                          return next;
-                        });
-                      }}
-                    >
-                      {name}
-                      <X className="ml-1 h-3 w-3" />
-                    </Badge>
-                  ))}
+                  .map((name) => {
+                    const isInvalid = !hasQuantity(name);
+                    return (
+                      <Badge
+                        key={name}
+                        variant={isInvalid ? "destructive" : "default"}
+                        className="cursor-pointer select-none px-3 py-1.5 text-sm"
+                        onClick={() => {
+                          setPantryChecked((prev) => {
+                            const next = new Set(prev);
+                            next.delete(name);
+                            return next;
+                          });
+                          setPantryAmounts((prev) => {
+                            const next = { ...prev };
+                            delete next[name];
+                            return next;
+                          });
+                          setRestoredBareItems((prev) => prev.filter((n) => n !== name));
+                        }}
+                      >
+                        {name}
+                        <X className="ml-1 h-3 w-3" />
+                      </Badge>
+                    );
+                  })}
               </div>
             )}
-            <div className="flex gap-2">
-              <Input
-                placeholder="e.g. 3 tomatoes, 1 cup rice"
-                value={customPantry}
-                onChange={(e) => setCustomPantry(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomPantry())}
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="icon" onClick={addCustomPantry}>
-                <Plus className="h-4 w-4" />
-              </Button>
+            <div className="space-y-1">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="e.g. 3 tomatoes, 1 cup rice"
+                  value={customPantry}
+                  onChange={(e) => {
+                    setCustomPantry(e.target.value);
+                    if (customPantryError) setCustomPantryError(null);
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomPantry())}
+                  className={`flex-1 ${customPantryError ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                  aria-invalid={!!customPantryError}
+                />
+                <Button type="button" variant="outline" size="icon" onClick={addCustomPantry}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {customPantryError && (
+                <p className="text-xs text-destructive">{customPantryError}</p>
+              )}
             </div>
           </div>
 
