@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,6 @@ const PANTRY_DEFAULTS = [
 ];
 const WEEKLY_PLAN_KEY = "weeklyPlan";
 const HAVE_STORAGE_KEY = "savr-have-items";
-const FORM_INPUTS_KEY = "formInputs";
 
 const normalizeDefaultPantryEntry = (name: string, amount: string): string => {
   const trimmedAmount = amount.trim();
@@ -124,7 +123,7 @@ const Index = () => {
   const [pantryAmounts, setPantryAmounts] = useState<Record<string, string>>({});
   const [customPantry, setCustomPantry] = useState("");
   const [customPantryError, setCustomPantryError] = useState<string | null>(null);
-  const [restoredBareItems, setRestoredBareItems] = useState<string[]>([]);
+  
   const [preference, setPreference] = useState("balanced");
 
   // Pantry items intentionally start empty on every visit. Users must check
@@ -159,10 +158,6 @@ const Index = () => {
 
   const updateAmount = (name: string, value: string) => {
     setPantryAmounts((prev) => ({ ...prev, [name]: value }));
-    // Clear the "needs fixing" warning for this item once a quantity appears
-    if (hasQuantity(value)) {
-      setRestoredBareItems((prev) => prev.filter((n) => n !== name));
-    }
   };
 
   const addCustomPantry = () => {
@@ -518,12 +513,6 @@ const Index = () => {
               <span className="font-medium">2 cups rice</span>.
             </p>
 
-            {restoredBareItems.length > 0 && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-                These saved items are missing a quantity. Please add one before regenerating:{" "}
-                <span className="font-medium">{restoredBareItems.join(", ")}</span>.
-              </div>
-            )}
 
             <div className="space-y-3">
               {PANTRY_DEFAULTS.map((item) => {
@@ -585,7 +574,7 @@ const Index = () => {
                             delete next[name];
                             return next;
                           });
-                          setRestoredBareItems((prev) => prev.filter((n) => n !== name));
+                          
                         }}
                       >
                         {name}
