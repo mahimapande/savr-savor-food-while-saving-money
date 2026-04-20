@@ -122,6 +122,43 @@ function parseShoppingItem(item: ShoppingListItem) {
   };
 }
 
+// Pluralize ingredient nouns when shown after a measurement unit (cup, oz, tbsp).
+// "berry" → "berries", "tomato" → "tomatoes", "leaf" → "leaves". Skips true mass
+// nouns (rice, flour, milk, etc.) and words that already look plural.
+const MASS_NOUNS = new Set([
+  "rice", "flour", "sugar", "salt", "pepper", "oil", "butter", "milk", "yogurt",
+  "cheese", "honey", "syrup", "sauce", "broth", "stock", "water", "vinegar",
+  "quinoa", "couscous", "oat", "oats", "oatmeal", "granola", "cereal", "pasta",
+  "spinach", "kale", "lettuce", "arugula", "cabbage", "cilantro", "parsley",
+  "basil", "mint", "dill", "thyme", "rosemary", "garlic", "ginger", "tahini",
+  "hummus", "tofu", "tempeh", "salmon", "tuna", "chicken", "beef", "pork",
+  "bread", "cinnamon", "paprika", "cumin", "turmeric",
+]);
+function pluralizeIngredient(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return trimmed;
+  const lower = trimmed.toLowerCase();
+  const parts = trimmed.split(/\s+/);
+  const last = parts[parts.length - 1];
+  const lastLower = last.toLowerCase();
+  if (MASS_NOUNS.has(lastLower) || MASS_NOUNS.has(lower)) return trimmed;
+  if (lastLower.endsWith("s")) return trimmed;
+  let plural: string;
+  if (/[^aeiou]y$/i.test(last)) {
+    plural = last.slice(0, -1) + "ies";
+  } else if (/(x|z|ch|sh)$/i.test(last)) {
+    plural = last + "es";
+  } else if (/[^aeiou]o$/i.test(last)) {
+    plural = last + "es";
+  } else if (/fe?$/i.test(last)) {
+    plural = last.replace(/fe?$/i, "ves");
+  } else {
+    plural = last + "s";
+  }
+  parts[parts.length - 1] = plural;
+  return parts.join(" ");
+}
+
 interface ConsolidatedItem {
   displayName: string;
   cost: number;
@@ -156,7 +193,9 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
       // Real unit (cups, oz, tbsp, sticks, etc.) — pluralize sticks for >1
       let unit = g.unit;
       if (unit === "stick" && g.qty > 1) unit = "sticks";
-      displayName = `${qtyStr} ${unit} ${g.base}`;
+      // Pluralize collective/countable nouns measured in cups/oz, e.g.
+      // "1 cup berry" → "1 cup berries", "2 cup tomato" → "2 cup tomatoes".
+      displayName = `${qtyStr} ${unit} ${pluralizeIngredient(g.base)}`;
     } else {
       // No real unit (originally "each" or converted-from-cups produce) —
       // show "{qty} {base}" cleanly. Pluralize countable produce when >1.
