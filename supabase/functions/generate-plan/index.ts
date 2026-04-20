@@ -291,21 +291,39 @@ function buildUserMessage(inputs: Record<string, unknown>): string {
 // ---------------------------------------------------------------------------
 async function callOpenAI(
   apiKey: string,
-  messages: { role: string; content: string }[]
-): Promise<{ ok: true; plan: any } | { ok: false; status: number; error: string }> {
-  const response = await fetch(OPENAI_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      messages,
-      tools: [PLAN_TOOL],
-      tool_choice: { type: "function", function: { name: "return_meal_plan" } },
-    }),
-  });
+  messages: { role: string; content: string }[],
+  timeoutMs = 110_000
+): Promise<{ ok: true; plan: any } | { ok: false; status: number; error: string; timedOut?: boolean }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(OPENAI_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages,
+        tools: [PLAN_TOOL],
+        tool_choice: { type: "function", function: { name: "return_meal_plan" } },
+      }),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    const aborted = (e as Error)?.name === "AbortError";
+    console.error("OpenAI fetch failed:", aborted ? "timeout" : e);
+    return {
+      ok: false,
+      status: aborted ? 504 : 500,
+      error: aborted ? `OpenAI call exceeded ${timeoutMs}ms` : String(e),
+      timedOut: aborted,
+    };
+  }
+  clearTimeout(timer);
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -364,7 +382,17 @@ serve(async (req) => {
       { role: "user", content: userMessage },
     ];
 
-    let attempt = await callOpenAI(OPENAI_API_KEY, messages);
+    // Edge function idle timeout is 150s. Track elapsed time so we don't
+    // start a second OpenAI call we can't finish.
+    const HARD_BUDGET_MS = 140_000;
+    const startedAt = Date.now();
+    const remaining = () => HARD_BUDGET_MS - (Date.now() - startedAt);
+
+    let attempt = await callOpenAI(
+      OPENAI_API_KEY,
+      messages,
+      Math.min(120_000, Math.max(20_000, remaining()))
+    );
     let retried = false;
 
     if (!attempt.ok) {
@@ -388,13 +416,22 @@ serve(async (req) => {
 
     let planData = attempt.plan;
     let filledSlots = Array.isArray(planData?.meals) ? planData.meals.length : 0;
-    console.log(`OpenAI returned ${filledSlots} meals (requested ${requestedSlots})`);
+    console.log(
+      `OpenAI returned ${filledSlots} meals (requested ${requestedSlots}) in ${Date.now() - startedAt}ms`
+    );
 
-    // Schedule-coverage retry: if the model under-fills, ask once more with an
-    // explicit corrective message, preserving previous constraints.
-    if (allowRetry && requestedSlots > 0 && filledSlots < requestedSlots) {
+    // Schedule-coverage retry — only if we have enough time budget left.
+    // Otherwise return the partial plan; client will retry with a fresh window.
+    const RETRY_MIN_BUDGET_MS = 30_000;
+    const shouldRetry =
+      allowRetry && requestedSlots > 0 && filledSlots < requestedSlots;
+
+    if (shouldRetry && remaining() >= RETRY_MIN_BUDGET_MS) {
       retried = true;
-      console.log(`Under-fill detected (${filledSlots}/${requestedSlots}). Issuing single retry...`);
+      console.log(
+        `Under-fill detected (${filledSlots}/${requestedSlots}). ` +
+        `Issuing single retry (${remaining()}ms left)...`
+      );
 
       const correction =
         `You returned only ${filledSlots} meals, but the user requested ` +
@@ -405,14 +442,15 @@ serve(async (req) => {
 
       const retryMessages = [
         ...messages,
-        {
-          role: "assistant",
-          content: `Returned ${filledSlots} meals (incomplete).`,
-        },
+        { role: "assistant", content: `Returned ${filledSlots} meals (incomplete).` },
         { role: "user", content: correction },
       ];
 
-      const retryAttempt = await callOpenAI(OPENAI_API_KEY, retryMessages);
+      const retryAttempt = await callOpenAI(
+        OPENAI_API_KEY,
+        retryMessages,
+        Math.max(15_000, remaining() - 5_000)
+      );
       if (retryAttempt.ok) {
         planData = retryAttempt.plan;
         filledSlots = Array.isArray(planData?.meals) ? planData.meals.length : 0;
@@ -420,6 +458,11 @@ serve(async (req) => {
       } else {
         console.warn("Retry call failed, keeping first attempt:", retryAttempt.error);
       }
+    } else if (shouldRetry) {
+      console.warn(
+        `Under-fill (${filledSlots}/${requestedSlots}) but only ${remaining()}ms left — ` +
+        `skipping server retry; client will retry with a fresh window.`
+      );
     }
 
     return new Response(
