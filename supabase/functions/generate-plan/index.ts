@@ -382,7 +382,17 @@ serve(async (req) => {
       { role: "user", content: userMessage },
     ];
 
-    let attempt = await callOpenAI(OPENAI_API_KEY, messages);
+    // Edge function idle timeout is 150s. Track elapsed time so we don't
+    // start a second OpenAI call we can't finish.
+    const HARD_BUDGET_MS = 140_000;
+    const startedAt = Date.now();
+    const remaining = () => HARD_BUDGET_MS - (Date.now() - startedAt);
+
+    let attempt = await callOpenAI(
+      OPENAI_API_KEY,
+      messages,
+      Math.min(120_000, Math.max(20_000, remaining()))
+    );
     let retried = false;
 
     if (!attempt.ok) {
