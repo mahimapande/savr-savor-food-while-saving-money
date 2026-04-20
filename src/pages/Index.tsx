@@ -30,8 +30,32 @@ const PANTRY_DEFAULTS = [
 ];
 const WEEKLY_PLAN_KEY = "weeklyPlan";
 const HAVE_STORAGE_KEY = "savr-have-items";
+const FORM_INPUTS_KEY = "formInputs";
 
-const Index = () => {
+// A pantry value must start with a number (integer or decimal, optional fraction).
+// Examples accepted: "6", "6 eggs", "1.5 cups rice", "1/2 lb pasta".
+const QTY_PATTERN = /^\s*(\d+(\.\d+)?|\d+\/\d+)(\s|$)/;
+const hasQuantity = (s: string): boolean => QTY_PATTERN.test(s);
+
+// Suggest a likely unit for known bare ingredient nouns (best-effort hint only).
+const UNIT_HINTS: Record<string, string> = {
+  eggs: "large", egg: "large",
+  milk: "gallon", butter: "stick", bread: "loaf",
+  rice: "cup", pasta: "lb", flour: "cup", sugar: "cup",
+  oil: "tbsp", "olive oil": "tbsp",
+  cheese: "oz", yogurt: "cup",
+  onion: "each", onions: "each", tomato: "each", tomatoes: "each",
+  garlic: "clove", potato: "each", potatoes: "each",
+  carrot: "each", carrots: "each", lemon: "each", lemons: "each",
+  avocado: "each", avocados: "each", banana: "each", bananas: "each",
+};
+const unitHintFor = (name: string): string | null => {
+  const key = name.trim().toLowerCase();
+  if (UNIT_HINTS[key]) return UNIT_HINTS[key];
+  // Try last word (e.g. "fresh basil" → "basil")
+  const last = key.split(/\s+/).pop() || "";
+  return UNIT_HINTS[last] || null;
+};
   const navigate = useNavigate();
   const [budget, setBudget] = useState("");
   const [mealCounts, setMealCounts] = useState({ breakfast: 0, lunch: 0, dinner: 0, snack: 0 });
