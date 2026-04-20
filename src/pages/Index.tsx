@@ -32,6 +32,23 @@ const WEEKLY_PLAN_KEY = "weeklyPlan";
 const HAVE_STORAGE_KEY = "savr-have-items";
 const FORM_INPUTS_KEY = "formInputs";
 
+const normalizeDefaultPantryEntry = (name: string, amount: string): string => {
+  const trimmedAmount = amount.trim();
+  const trimmedName = name.trim().toLowerCase();
+  const singularName = trimmedName.endsWith("s") ? trimmedName.slice(0, -1) : trimmedName;
+  const amountLower = trimmedAmount.toLowerCase();
+
+  if (
+    amountLower === trimmedName ||
+    amountLower.endsWith(` ${trimmedName}`) ||
+    amountLower.endsWith(` ${singularName}`)
+  ) {
+    return trimmedAmount;
+  }
+
+  return `${trimmedAmount} ${trimmedName}`;
+};
+
 // A pantry value must start with a number (integer or decimal, optional fraction).
 // Examples accepted: "6", "6 eggs", "1.5 cups rice", "1/2 lb pasta".
 const QTY_PATTERN = /^\s*(\d+(\.\d+)?|\d+\/\d+)(\s|$)/;
@@ -219,9 +236,9 @@ const Index = () => {
     return [...pantryChecked].map((name) => {
       const amount = (pantryAmounts[name] || "").trim();
       if (!amount) return name;
-      // For default items (Eggs, Milk, Butter), combine amount + name (e.g. "6 eggs")
+      // For default items, append the noun only if the user didn't already type it.
       if (defaults.includes(name.toLowerCase())) {
-        return `${amount} ${name.toLowerCase()}`;
+        return normalizeDefaultPantryEntry(name, amount);
       }
       // For custom items, the amount IS the full string already
       return amount;
