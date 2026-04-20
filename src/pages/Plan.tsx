@@ -159,6 +159,18 @@ function pluralizeIngredient(name: string): string {
   return parts.join(" ");
 }
 
+// Pluralize measurement units. Handles common English rules:
+// pinch → pinches, dash → dashes, cup → cups, tbsp/tsp stay (abbrev), oz stays.
+const INVARIANT_UNITS = new Set(["tsp", "tbsp", "oz", "lb", "ml", "g", "kg", "l"]);
+function pluralizeUnit(unit: string): string {
+  const u = unit.trim();
+  const lower = u.toLowerCase();
+  if (!u || INVARIANT_UNITS.has(lower)) return u;
+  if (lower.endsWith("s") || lower.endsWith("es")) return u;
+  if (/(ch|sh|s|x|z)$/.test(lower)) return u + "es";
+  return u + "s";
+}
+
 interface ConsolidatedItem {
   displayName: string;
   cost: number;
