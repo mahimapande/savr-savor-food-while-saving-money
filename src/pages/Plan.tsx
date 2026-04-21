@@ -95,7 +95,12 @@ function parseShoppingItem(item: ShoppingListItem) {
     rawUnit !== "" && (rawUnit === base || unitSingular === baseSingular);
   // Generic placeholder units that aren't meaningful to users (e.g. "1 unit
   // garlic", "2 units onion"). Treat them the same as "each" — drop the word.
-  const GENERIC_UNITS = new Set(["each", "unit", "units", "piece", "pieces", "item", "items", "whole", "count"]);
+  // Size descriptors like "large", "medium", "small" are not real units either
+  // (e.g. "3 large eggs" should not become "3 larges of eggs").
+  const GENERIC_UNITS = new Set([
+    "each", "unit", "units", "piece", "pieces", "item", "items", "whole", "count",
+    "large", "medium", "small", "extra large", "xl", "jumbo",
+  ]);
   const normalizedUnit =
     GENERIC_UNITS.has(rawUnit) || unitIsBaseNoun ? "" : item.unit;
 
