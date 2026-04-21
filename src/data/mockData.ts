@@ -252,17 +252,61 @@ export interface PantryBudget {
  */
 export function buildPantryMap(pantryInputs: string[]): Record<string, PantryBudget> {
   const map: Record<string, PantryBudget> = {};
+  // When the user types the unit AFTER the noun (e.g. "2 butter sticks",
+  // "3 milk gallons", "1 tomato sauce jar"), parseIngredient cannot detect
+  // the unit (it only matches qty + unit at the start) and falls back to
+  // unit="each", baseName="butter sticks". Detect these "noun + unit" cases
+  // and swap them so display and budget math stay correct.
+  const TRAILING_UNIT_WORDS: Record<string, string> = {
+    sticks: "stick", stick: "stick",
+    jars: "jar", jar: "jar",
+    cans: "can", can: "can",
+    bags: "bag", bag: "bag",
+    boxes: "box", box: "box",
+    bottles: "bottle", bottle: "bottle",
+    cartons: "carton", carton: "carton",
+    loaves: "loaf", loaf: "loaf",
+    gallons: "gallon", gallon: "gallon",
+    pints: "pint", pint: "pint",
+    quarts: "quart", quart: "quart",
+    liters: "liter", liter: "liter",
+    blocks: "block", block: "block",
+    bunches: "bunch", bunch: "bunch",
+    cups: "cup", cup: "cup",
+    slices: "slice", slice: "slice",
+    cloves: "clove", clove: "clove",
+    pinches: "pinch", pinch: "pinch",
+    dashes: "dash", dash: "dash",
+  };
   for (const raw of pantryInputs) {
     const trimmed = raw.trim();
     if (!trimmed) continue;
     const parsed = parseIngredient(trimmed);
     let qty = parsed.qty;
     let unit = parsed.unit;
+    let baseNameOverride: string | null = null;
+
+    // "noun + unit" pattern: rewrite e.g. "butter sticks" → unit "sticks",
+    // base "butter". Only when no real unit was detected up front.
+    if (unit === "each") {
+      const words = parsed.baseName.split(/\s+/);
+      if (words.length >= 2) {
+        const lastWord = words[words.length - 1].toLowerCase();
+        const canonical = TRAILING_UNIT_WORDS[lastWord];
+        if (canonical) {
+          unit = parsed.qty > 1 ? lastWord : canonical;
+          baseNameOverride = words.slice(0, -1).join(" ").toLowerCase();
+        }
+      }
+    }
 
     // Preserve original declared values for display BEFORE any conversion.
     const displayQty = parsed.qty;
     const displayUnit = parsed.unit;
     let fromHouseholdSize = false;
+    // If we rewrote the noun/unit pair, the display unit should reflect the
+    // unit the user actually wrote (e.g. "sticks"), not "each".
+    const finalDisplayUnit = baseNameOverride !== null ? unit : displayUnit;
 
     // Convert container units to canonical measurement units
     const containerConv = CONTAINER_CONVERSIONS[unit];
@@ -280,7 +324,7 @@ export function buildPantryMap(pantryInputs: string[]): Record<string, PantryBud
     // If the user gave no explicit unit ("each") but this ingredient has a
     // known household package size, expand it for budget math while leaving
     // the display untouched. e.g. "1 butter" → 8 tbsp internally.
-    const name = parsed.baseName;
+    const name = baseNameOverride !== null ? baseNameOverride : parsed.baseName;
     if (unit === "each" && HOUSEHOLD_UNIT_SIZES[name]) {
       const hh = HOUSEHOLD_UNIT_SIZES[name];
       qty = qty * hh.qtyPerEach;
@@ -295,11 +339,11 @@ export function buildPantryMap(pantryInputs: string[]): Record<string, PantryBud
         existing.maxQty += converted;
       }
       // Accumulate display qty when display units match
-      if (existing.displayUnit === displayUnit) {
+      if (existing.displayUnit === finalDisplayUnit) {
         existing.displayQty += displayQty;
       }
     } else {
-      map[name] = { maxQty: qty, unit, displayQty, displayUnit, fromHouseholdSize };
+      map[name] = { maxQty: qty, unit, displayQty, displayUnit: finalDisplayUnit, fromHouseholdSize };
     }
   }
   return map;
