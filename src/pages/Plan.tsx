@@ -217,17 +217,11 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
       // "1 cup berry" → "1 cup of berries", "2 cup tomato" → "2 cups of tomatoes".
       displayName = `${qtyStr} ${unit} of ${pluralizeIngredient(g.base)}`;
     } else {
-      // No real unit (originally "each" or converted-from-cups produce) —
-      // show "{qty} {base}" cleanly. Pluralize countable produce when >1.
+      // No real unit (originally "each", a size descriptor like "large", or
+      // converted-from-cups produce). Pluralize the base noun when qty > 1
+      // so we get "2 wraps", "3 eggs", "2 cucumbers" — but skip mass nouns.
       let base = g.base;
-      const baseLower = base.toLowerCase();
-      if (
-        g.qty > 1 &&
-        COUNTABLE_PRODUCE.has(baseLower) &&
-        !baseLower.endsWith("s")
-      ) {
-        base = base + "s";
-      }
+      if (g.qty > 1) base = pluralizeIngredient(base);
       displayName = `${qtyStr} ${base}`;
     }
     return {
