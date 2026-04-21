@@ -95,7 +95,12 @@ function parseShoppingItem(item: ShoppingListItem) {
     rawUnit !== "" && (rawUnit === base || unitSingular === baseSingular);
   // Generic placeholder units that aren't meaningful to users (e.g. "1 unit
   // garlic", "2 units onion"). Treat them the same as "each" — drop the word.
-  const GENERIC_UNITS = new Set(["each", "unit", "units", "piece", "pieces", "item", "items", "whole", "count"]);
+  // Size descriptors like "large", "medium", "small" are not real units either
+  // (e.g. "3 large eggs" should not become "3 larges of eggs").
+  const GENERIC_UNITS = new Set([
+    "each", "unit", "units", "piece", "pieces", "item", "items", "whole", "count",
+    "large", "medium", "small", "extra large", "xl", "jumbo",
+  ]);
   const normalizedUnit =
     GENERIC_UNITS.has(rawUnit) || unitIsBaseNoun ? "" : item.unit;
 
@@ -128,7 +133,7 @@ function parseShoppingItem(item: ShoppingListItem) {
 const MASS_NOUNS = new Set([
   "rice", "flour", "sugar", "salt", "pepper", "oil", "butter", "milk", "yogurt",
   "cheese", "honey", "syrup", "sauce", "broth", "stock", "water", "vinegar",
-  "quinoa", "couscous", "oat", "oats", "oatmeal", "granola", "cereal", "pasta",
+  "quinoa", "couscous", "oatmeal", "granola", "cereal", "pasta",
   "spinach", "kale", "lettuce", "arugula", "cabbage", "cilantro", "parsley",
   "basil", "mint", "dill", "thyme", "rosemary", "garlic", "ginger", "tahini",
   "hummus", "tofu", "tempeh", "salmon", "tuna", "chicken", "beef", "pork",
@@ -212,17 +217,11 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
       // "1 cup berry" → "1 cup of berries", "2 cup tomato" → "2 cups of tomatoes".
       displayName = `${qtyStr} ${unit} of ${pluralizeIngredient(g.base)}`;
     } else {
-      // No real unit (originally "each" or converted-from-cups produce) —
-      // show "{qty} {base}" cleanly. Pluralize countable produce when >1.
+      // No real unit (originally "each", a size descriptor like "large", or
+      // converted-from-cups produce). Pluralize the base noun when qty > 1
+      // so we get "2 wraps", "3 eggs", "2 cucumbers" — but skip mass nouns.
       let base = g.base;
-      const baseLower = base.toLowerCase();
-      if (
-        g.qty > 1 &&
-        COUNTABLE_PRODUCE.has(baseLower) &&
-        !baseLower.endsWith("s")
-      ) {
-        base = base + "s";
-      }
+      if (g.qty > 1) base = pluralizeIngredient(base);
       displayName = `${qtyStr} ${base}`;
     }
     return {
