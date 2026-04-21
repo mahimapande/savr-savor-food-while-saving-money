@@ -229,6 +229,12 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
       cost: g.cost,
       originalNames: g.originalNames,
     };
+  }).filter((c) => {
+    // Hide placeholder items where the AI returned no ingredient name
+    // (sanitizeIngredient falls back to "unknown ingredient"). These would
+    // otherwise render as "1 unknown" in the shopping list.
+    const lower = c.displayName.toLowerCase();
+    return !/\bunknown(\s+ingredient)?s?\b/.test(lower);
   });
 }
 
