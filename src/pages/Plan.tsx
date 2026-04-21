@@ -224,6 +224,8 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
   return [...groups.values()].map((g) => {
     const qtyStr = formatQty(g.qty);
     let displayName: string;
+    const baseLower = (g.base || "").toLowerCase();
+    const portionDefault = !g.unit ? PORTION_UNIT_DEFAULTS[baseLower] : undefined;
     if (g.unit) {
       // Real unit (cups, oz, tbsp, sticks, etc.) — pluralize sticks for >1
       let unit = g.unit;
@@ -233,6 +235,11 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
       // Pluralize collective/countable nouns measured in cups/oz, e.g.
       // "1 cup berry" → "1 cup of berries", "2 cup tomato" → "2 cups of tomatoes".
       displayName = `${qtyStr} ${unit} of ${pluralizeIngredient(g.base)}`;
+    } else if (portionDefault) {
+      // Vague protein mass noun without a real unit — add a portion descriptor
+      // so "1 salmon" becomes "1 fillet of salmon", "2 chicken" → "2 breasts of chicken".
+      const unit = g.qty > 1 ? pluralizeUnit(portionDefault) : portionDefault;
+      displayName = `${qtyStr} ${unit} of ${g.base}`;
     } else {
       // No real unit (originally "each", a size descriptor like "large", or
       // converted-from-cups produce). Pluralize the base noun when qty > 1
