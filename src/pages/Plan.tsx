@@ -133,7 +133,7 @@ function parseShoppingItem(item: ShoppingListItem) {
 const MASS_NOUNS = new Set([
   "rice", "flour", "sugar", "salt", "pepper", "oil", "butter", "milk", "yogurt",
   "cheese", "honey", "syrup", "sauce", "broth", "stock", "water", "vinegar",
-  "quinoa", "couscous", "oat", "oats", "oatmeal", "granola", "cereal", "pasta",
+  "quinoa", "couscous", "oatmeal", "granola", "cereal", "pasta",
   "spinach", "kale", "lettuce", "arugula", "cabbage", "cilantro", "parsley",
   "basil", "mint", "dill", "thyme", "rosemary", "garlic", "ginger", "tahini",
   "hummus", "tofu", "tempeh", "salmon", "tuna", "chicken", "beef", "pork",
