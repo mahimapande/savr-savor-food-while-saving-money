@@ -176,6 +176,23 @@ function pluralizeUnit(unit: string): string {
   return u + "s";
 }
 
+// Mass nouns for proteins that are vague on their own ("1 salmon" is unclear —
+// is it a whole fish, a fillet, a portion?). When the shopping list ends up
+// with one of these without a real measurement unit, default to a sensible
+// portion descriptor so the list is actionable.
+const PORTION_UNIT_DEFAULTS: Record<string, string> = {
+  salmon: "fillet",
+  tuna: "fillet",
+  cod: "fillet",
+  tilapia: "fillet",
+  halibut: "fillet",
+  trout: "fillet",
+  chicken: "breast",
+  "chicken breast": "breast",
+  beef: "lb",
+  pork: "lb",
+};
+
 interface ConsolidatedItem {
   displayName: string;
   cost: number;
