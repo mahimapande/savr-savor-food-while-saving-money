@@ -146,6 +146,20 @@ const MASS_NOUNS = new Set([
   "hummus", "tofu", "tempeh", "salmon", "tuna", "chicken", "beef", "pork",
   "bread", "cinnamon", "paprika", "cumin", "turmeric",
 ]);
+// Heads that stay mass even in compound phrases like "olive oil", "brown rice",
+// "chicken broth", "Greek yogurt". Excludes ambiguous heads like "pepper"
+// (mass as a spice, but countable in "bell pepper") and protein names like
+// "chicken" (mass alone, but "chicken breast" is countable).
+const COMPOUND_MASS_HEADS = new Set([
+   "rice", "flour", "sugar", "salt", "oil", "butter", "milk", "yogurt",
+   "cheese", "honey", "syrup", "sauce", "broth", "stock", "water", "vinegar",
+   "quinoa", "couscous", "oatmeal", "granola", "cereal", "pasta",
+   "spinach", "kale", "lettuce", "arugula", "cabbage", "cilantro", "parsley",
+   "basil", "mint", "dill", "thyme", "rosemary", "garlic", "ginger", "tahini",
+   "hummus", "tofu", "tempeh", "bread", "cinnamon", "paprika", "cumin",
+   "turmeric", "applesauce", "popcorn", "mayonnaise", "mustard", "ketchup",
+   "salsa", "guacamole", "jam", "jelly", "marmalade", "couscous", "polenta",
+]);
 function pluralizeIngredient(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) return trimmed;
@@ -157,6 +171,8 @@ function pluralizeIngredient(name: string): string {
   // like "pepper" is mass, but "bell pepper" is countable and should pluralize.
   if (MASS_NOUNS.has(lower)) return trimmed;
   if (parts.length === 1 && MASS_NOUNS.has(lastLower)) return trimmed;
+  // Compound mass nouns: "olive oil", "brown rice", "chicken broth" stay mass.
+  if (COMPOUND_MASS_HEADS.has(lastLower)) return trimmed;
   if (lastLower.endsWith("s")) return trimmed;
   let plural: string;
   if (/[^aeiou]y$/i.test(last)) {
@@ -202,6 +218,9 @@ function singularizeIngredient(name: string): string {
   const lastLower = last.toLowerCase();
   if (MASS_NOUNS.has(lower)) return trimmed;
   if (parts.length === 1 && MASS_NOUNS.has(lastLower)) return trimmed;
+  // Compound mass nouns ("olive oil", "brown rice") stay mass — never strip an
+  // 's' off the head when it's actually part of the word (e.g. "applesauce").
+  if (COMPOUND_MASS_HEADS.has(lastLower)) return trimmed;
   let singular = last;
   if (SINGULAR_OVERRIDES[lastLower]) {
     singular = SINGULAR_OVERRIDES[lastLower];
@@ -251,7 +270,6 @@ const PORTION_UNIT_DEFAULTS: Record<string, string> = {
   halibut: "fillet",
   trout: "fillet",
   chicken: "breast",
-  "chicken breast": "breast",
   beef: "lb",
   pork: "lb",
 };
