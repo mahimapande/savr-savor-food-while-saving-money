@@ -306,9 +306,15 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
     } else {
       // No real unit (originally "each", a size descriptor like "large", or
       // converted-from-cups produce). Pluralize the base noun when qty > 1
-      // so we get "2 wraps", "3 eggs", "2 cucumbers" — but skip mass nouns.
+      // so we get "2 wraps", "3 eggs", "2 cucumbers". For qty ≤ 1, force
+      // the head noun to singular so we get "1 ice cube", not "1 ice cubes".
+      // Mass nouns are left alone in both directions.
       let base = g.base;
-      if (g.qty > 1) base = pluralizeIngredient(base);
+      if (g.qty > 1) {
+        base = pluralizeIngredient(base);
+      } else {
+        base = singularizeIngredient(base);
+      }
       displayName = `${qtyStr} ${base}`;
     }
     return {
