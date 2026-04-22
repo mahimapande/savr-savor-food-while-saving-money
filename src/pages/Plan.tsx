@@ -270,7 +270,6 @@ const PORTION_UNIT_DEFAULTS: Record<string, string> = {
   halibut: "fillet",
   trout: "fillet",
   chicken: "breast",
-  "chicken breast": "breast",
   beef: "lb",
   pork: "lb",
 };
