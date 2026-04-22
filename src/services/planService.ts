@@ -107,11 +107,41 @@ function llmResponseToPlanData(
     "granola", "honey", "syrup", "vinegar", "soy sauce", "water",
   ]);
 
+  const SINGULAR_OF: Record<string, string> = {
+    tomatoes: "tomato",
+    potatoes: "potato",
+    mangoes: "mango",
+    avocadoes: "avocado",
+    avocados: "avocado",
+    leaves: "leaf",
+    loaves: "loaf",
+    knives: "knife",
+    feet: "foot",
+    teeth: "tooth",
+    geese: "goose",
+    mice: "mouse",
+    people: "person",
+    children: "child",
+  };
+
+  const singularizeWord = (word: string): string => {
+    const lower = word.toLowerCase();
+    if (INVARIANT_PLURALS.has(lower)) return word;
+    if (SINGULAR_OF[lower]) return SINGULAR_OF[lower];
+    if (lower.endsWith("ies") && lower.length > 3) return word.slice(0, -3) + "y";
+    if (lower.endsWith("ses") || lower.endsWith("xes") || lower.endsWith("zes") ||
+        lower.endsWith("ches") || lower.endsWith("shes")) return word.slice(0, -2);
+    if (lower.endsWith("s") && !lower.endsWith("ss") && !lower.endsWith("us") && lower.length > 3) {
+      return word.slice(0, -1);
+    }
+    return word;
+  };
+
   const pluralizeWord = (word: string): string => {
     const lower = word.toLowerCase();
     if (INVARIANT_PLURALS.has(lower)) return word;
     if (IRREGULAR_PLURALS[lower]) return IRREGULAR_PLURALS[lower];
-    // Already plural? Heuristic: ends in 's' but not 'ss' (e.g. "carrots", "beans").
+    // Already plural? Heuristic: ends in 's' but not 'ss'/'us'.
     if (lower.endsWith("s") && !lower.endsWith("ss") && !lower.endsWith("us")) return word;
     if (/(s|x|z|ch|sh)$/i.test(word)) return `${word}es`;
     if (/[^aeiou]y$/i.test(word)) return `${word.slice(0, -1)}ies`;
@@ -119,11 +149,11 @@ function llmResponseToPlanData(
     return `${word}s`;
   };
 
-  // Pluralize only the head noun (last word) so "red onion" -> "red onions".
-  const pluralizePhrase = (phrase: string): string => {
+  // Operate only on the head noun (last word), so "red onion" -> "red onions".
+  const transformHeadNoun = (phrase: string, fn: (w: string) => string): string => {
     const parts = phrase.trim().split(/\s+/);
     if (parts.length === 0) return phrase;
-    parts[parts.length - 1] = pluralizeWord(parts[parts.length - 1]);
+    parts[parts.length - 1] = fn(parts[parts.length - 1]);
     return parts.join(" ");
   };
 
@@ -132,10 +162,21 @@ function llmResponseToPlanData(
     if (!item.qty || item.qty <= 0) return base;
     const qtyStr = Number.isInteger(item.qty) ? `${item.qty}` : `${Math.round(item.qty * 100) / 100}`;
     const unit = item.unit && item.unit.trim().length > 0 ? ` ${item.unit}` : "";
-    // Pluralize the noun when qty > 1 AND there's no measurement unit
-    // (e.g. "3 tomatoes" but "3 cup rice" stays as-is).
-    const shouldPluralize = item.qty > 1 && (!item.unit || item.unit.trim().length === 0);
-    const noun = shouldPluralize ? pluralizePhrase(base) : base;
+    const hasUnit = !!item.unit && item.unit.trim().length > 0;
+
+    // Rules:
+    // - With a measurement unit (tbsp, cup, half of, ...), the noun is mass/uncountable in
+    //   context, so it should always be SINGULAR ("1 tbsp mayonnaise", "2 cups rice").
+    // - Without a unit, pluralize when qty > 1 ("3 tomatoes"); singularize when qty ≤ 1
+    //   ("1 avocado").
+    let noun = base;
+    if (hasUnit) {
+      noun = transformHeadNoun(base, singularizeWord);
+    } else if (item.qty > 1) {
+      noun = transformHeadNoun(base, pluralizeWord);
+    } else {
+      noun = transformHeadNoun(base, singularizeWord);
+    }
     return `${qtyStr}${unit} ${noun}`.trim();
   };
 
