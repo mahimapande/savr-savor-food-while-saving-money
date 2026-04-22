@@ -467,37 +467,43 @@ const Plan = () => {
 
         {/* Metrics */}
         <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Card className="flex flex-col items-center gap-1 p-3 text-center bg-savr-green-light border-0">
-            <ChefHat className="h-5 w-5 text-primary" />
-            <span className="text-lg font-semibold text-foreground">{plan.metrics.totalMeals || "—"}</span>
-            <span className="text-xs text-muted-foreground">meals planned</span>
+          <Card className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 text-center bg-savr-green-light border-0">
+            <ChefHat className="h-4 w-4 text-primary/80" strokeWidth={1.75} />
+            <span className="text-[26px] sm:text-[30px] font-bold leading-[1.15] tracking-tight text-foreground">
+              {plan.metrics.totalMeals || "—"}
+            </span>
+            <span className="text-sm font-medium leading-[1.3] text-muted-foreground">meals planned</span>
           </Card>
-          <Card className="flex flex-col items-center gap-1 p-3 text-center bg-savr-orange-light border-0">
-            <DollarSign className="h-5 w-5 text-accent" />
-            <span className="text-lg font-semibold text-foreground">{shoppingCost > 0 ? dynamicCostRange : "—"}</span>
-            <span className="text-xs text-muted-foreground">estimated spend</span>
+          <Card className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 text-center bg-savr-orange-light border-0">
+            <DollarSign className="h-4 w-4 text-accent/80" strokeWidth={1.75} />
+            <span className="text-[22px] sm:text-[26px] font-bold leading-[1.15] tracking-tight text-foreground">
+              {shoppingCost > 0 ? dynamicCostRange : "—"}
+            </span>
+            <span className="text-sm font-medium leading-[1.3] text-muted-foreground">estimated spend</span>
           </Card>
-          <Card className={`flex flex-col items-center gap-1 p-3 text-center border-0 ${isOverBudget ? "bg-destructive/10" : "bg-savr-green-light"}`}>
+          <Card className={`flex flex-col items-center justify-center gap-1.5 px-3 py-4 text-center border-0 ${isOverBudget ? "bg-destructive/10" : "bg-savr-green-light"}`}>
             {isOverBudget ? (
-              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <AlertTriangle className="h-4 w-4 text-destructive/80" strokeWidth={1.75} />
             ) : (
-              <Wallet className="h-5 w-5 text-primary" />
+              <Wallet className="h-4 w-4 text-primary/80" strokeWidth={1.75} />
             )}
-            <span className={`text-lg font-semibold ${isOverBudget ? "text-destructive" : "text-foreground"}`}>
+            <span className={`text-[22px] sm:text-[26px] font-bold leading-[1.15] tracking-tight ${isOverBudget ? "text-destructive" : "text-foreground"}`}>
               {shoppingCost > 0 ? budgetLeftDisplay : "—"}
             </span>
-            <span className={`text-xs ${isOverBudget ? "text-destructive/80" : "text-muted-foreground"}`}>
+            <span className={`text-sm font-medium leading-[1.3] ${isOverBudget ? "text-destructive/80" : "text-muted-foreground"}`}>
               {isOverBudget ? "over budget" : "budget left"}
             </span>
           </Card>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Card className="flex flex-col items-center gap-1 p-3 text-center bg-savr-badge border-0 cursor-help">
-                  <RefreshCw className="h-5 w-5 text-primary" />
-                  <span className="text-lg font-semibold text-foreground">{ingredientReuse}%</span>
-                  <span className="text-xs text-muted-foreground">Shared ingredients</span>
-                  <span className="text-xs leading-tight text-foreground/70">helps reduce waste</span>
+                <Card className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 text-center bg-savr-badge border-0 cursor-help">
+                  <RefreshCw className="h-4 w-4 text-primary/80" strokeWidth={1.75} />
+                  <span className="text-[26px] sm:text-[30px] font-bold leading-[1.15] tracking-tight text-foreground">
+                    {ingredientReuse}%
+                  </span>
+                  <span className="text-sm font-medium leading-[1.3] text-muted-foreground">shared ingredients</span>
+                  <span className="text-xs leading-[1.3] text-foreground/60">helps reduce waste</span>
                 </Card>
               </TooltipTrigger>
               <TooltipContent>
