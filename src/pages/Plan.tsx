@@ -497,6 +497,7 @@ const Plan = () => {
                   <RefreshCw className="h-5 w-5 text-primary" />
                   <span className="text-lg font-semibold text-foreground">{ingredientReuse}%</span>
                   <span className="text-xs text-muted-foreground">Shared ingredients</span>
+                  <span className="text-[10px] leading-tight text-muted-foreground/80">helps reduce waste</span>
                 </Card>
               </TooltipTrigger>
               <TooltipContent>
