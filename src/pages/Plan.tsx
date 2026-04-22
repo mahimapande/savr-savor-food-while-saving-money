@@ -496,11 +496,13 @@ const Plan = () => {
                 <Card className="flex flex-col items-center gap-1 p-3 text-center bg-savr-badge border-0 cursor-help">
                   <RefreshCw className="h-5 w-5 text-primary" />
                   <span className="text-lg font-semibold text-foreground">{ingredientReuse}%</span>
-                  <span className="text-xs text-muted-foreground">ingredient reuse</span>
+                  <span className="text-xs text-muted-foreground">smarter shopping</span>
                 </Card>
               </TooltipTrigger>
               <TooltipContent>
-                <p className="text-xs">Percent of ingredients used in more than one meal.</p>
+                <p className="max-w-[220px] text-xs">
+                  Uses overlapping ingredients across meals so you buy fewer one-off items and reduce waste.
+                </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
