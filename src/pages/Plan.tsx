@@ -218,6 +218,9 @@ function singularizeIngredient(name: string): string {
   const lastLower = last.toLowerCase();
   if (MASS_NOUNS.has(lower)) return trimmed;
   if (parts.length === 1 && MASS_NOUNS.has(lastLower)) return trimmed;
+  // Compound mass nouns ("olive oil", "brown rice") stay mass — never strip an
+  // 's' off the head when it's actually part of the word (e.g. "applesauce").
+  if (COMPOUND_MASS_HEADS.has(lastLower)) return trimmed;
   let singular = last;
   if (SINGULAR_OVERRIDES[lastLower]) {
     singular = SINGULAR_OVERRIDES[lastLower];
