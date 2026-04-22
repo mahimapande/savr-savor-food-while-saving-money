@@ -383,6 +383,11 @@ export function parseIngredient(raw: string): ParsedIngredient {
     .trim()
     .toLowerCase();
 
+  // Strip leading filler words that often follow a unit ("1 cup of rice",
+  // "1 gallon of milk", "a pinch of salt"). Without this, downstream code
+  // produces awkward strings like "2 gallons of of milk".
+  baseName = baseName.replace(/^(?:of|a|an|the)\s+/i, "").trim();
+
   // Remove trailing 's' for simple plurals (but not words like "hummus", "oats")
   if (baseName.length > 3 && baseName.endsWith("s") && !baseName.endsWith("ss") && !baseName.endsWith("us") && !baseName.endsWith("oats")) {
     const singular = baseName.slice(0, -1);

@@ -88,7 +88,14 @@ function parseShoppingItem(item: ShoppingListItem) {
   // "banana" }. Rendering that naively produces "6 eggs eggs". Treat any unit
   // that matches (or is a simple plural of) the base name as "no unit".
   const rawUnit = (item.unit || "").toLowerCase().trim();
-  const base = (item.normalizedName || "").toLowerCase().trim();
+  // Defensive: some upstream parses leave a leading filler ("of milk",
+  // "a tomato") on normalizedName. Strip it here so display never produces
+  // strings like "2 gallons of of milk".
+  const base = (item.normalizedName || "")
+    .toLowerCase()
+    .trim()
+    .replace(/^(?:of|a|an|the)\s+/i, "")
+    .trim();
   const baseSingular = base.endsWith("s") ? base.slice(0, -1) : base;
   const unitSingular = rawUnit.endsWith("s") ? rawUnit.slice(0, -1) : rawUnit;
   const unitIsBaseNoun =
@@ -121,7 +128,7 @@ function parseShoppingItem(item: ShoppingListItem) {
   return {
     qty,
     unit,
-    base: item.normalizedName,
+    base,
     originalName: item.name,
     cost: item.cost,
   };
