@@ -83,12 +83,60 @@ function llmResponseToPlanData(
   const pantryAccum = new Map<string, ShoppingListItem>();
   const shopAccum = new Map<string, { item: ShoppingListItem; cat: keyof typeof lists }>();
 
+  const IRREGULAR_PLURALS: Record<string, string> = {
+    tomato: "tomatoes",
+    potato: "potatoes",
+    mango: "mangoes",
+    leaf: "leaves",
+    loaf: "loaves",
+    knife: "knives",
+    foot: "feet",
+    tooth: "teeth",
+    goose: "geese",
+    mouse: "mice",
+    person: "people",
+    child: "children",
+  };
+  // Words that are the same in singular/plural (mostly mass nouns / proteins).
+  const INVARIANT_PLURALS = new Set([
+    "fish", "salmon", "tuna", "shrimp", "rice", "pasta", "bread", "cheese",
+    "butter", "oil", "salt", "pepper", "sugar", "flour", "milk", "yogurt",
+    "tofu", "tahini", "hummus", "spinach", "broccoli", "kale", "lettuce",
+    "garlic", "ginger", "cinnamon", "cumin", "paprika", "oregano", "basil",
+    "parsley", "cilantro", "thyme", "rosemary", "couscous", "quinoa", "oats",
+    "granola", "honey", "syrup", "vinegar", "soy sauce", "water",
+  ]);
+
+  const pluralizeWord = (word: string): string => {
+    const lower = word.toLowerCase();
+    if (INVARIANT_PLURALS.has(lower)) return word;
+    if (IRREGULAR_PLURALS[lower]) return IRREGULAR_PLURALS[lower];
+    // Already plural? Heuristic: ends in 's' but not 'ss' (e.g. "carrots", "beans").
+    if (lower.endsWith("s") && !lower.endsWith("ss") && !lower.endsWith("us")) return word;
+    if (/(s|x|z|ch|sh)$/i.test(word)) return `${word}es`;
+    if (/[^aeiou]y$/i.test(word)) return `${word.slice(0, -1)}ies`;
+    if (/[^aeiou]o$/i.test(word)) return `${word}es`;
+    return `${word}s`;
+  };
+
+  // Pluralize only the head noun (last word) so "red onion" -> "red onions".
+  const pluralizePhrase = (phrase: string): string => {
+    const parts = phrase.trim().split(/\s+/);
+    if (parts.length === 0) return phrase;
+    parts[parts.length - 1] = pluralizeWord(parts[parts.length - 1]);
+    return parts.join(" ");
+  };
+
   const formatAggregatedName = (item: ShoppingListItem): string => {
     const base = item.normalizedName || item.name;
     if (!item.qty || item.qty <= 0) return base;
     const qtyStr = Number.isInteger(item.qty) ? `${item.qty}` : `${Math.round(item.qty * 100) / 100}`;
     const unit = item.unit && item.unit.trim().length > 0 ? ` ${item.unit}` : "";
-    return `${qtyStr}${unit} ${base}`.trim();
+    // Pluralize the noun when qty > 1 AND there's no measurement unit
+    // (e.g. "3 tomatoes" but "3 cup rice" stays as-is).
+    const shouldPluralize = item.qty > 1 && (!item.unit || item.unit.trim().length === 0);
+    const noun = shouldPluralize ? pluralizePhrase(base) : base;
+    return `${qtyStr}${unit} ${noun}`.trim();
   };
 
   for (const meal of meals) {
