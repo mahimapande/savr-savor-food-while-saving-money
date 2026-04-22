@@ -74,15 +74,26 @@ function llmResponseToPlanData(
     };
   });
 
-  // Build shopping list and pantry items from ingredients
+  // Build shopping list and pantry items from ingredients.
+  // Aggregate duplicates by normalizedName+unit so the list shows one
+  // consolidated entry (e.g. "3 tomato") instead of repeated "1 tomato" rows.
   const lists: Record<string, ShoppingListItem[]> = {
     produce: [], dairy: [], plantBased: [], dryGoods: [], spicesCondiments: [],
   };
   const pantryAccum = new Map<string, ShoppingListItem>();
+  const shopAccum = new Map<string, { item: ShoppingListItem; cat: keyof typeof lists }>();
+
+  const formatAggregatedName = (item: ShoppingListItem): string => {
+    const base = item.normalizedName || item.name;
+    if (!item.qty || item.qty <= 0) return base;
+    const qtyStr = Number.isInteger(item.qty) ? `${item.qty}` : `${Math.round(item.qty * 100) / 100}`;
+    const unit = item.unit && item.unit.trim().length > 0 ? ` ${item.unit}` : "";
+    return `${qtyStr}${unit} ${base}`.trim();
+  };
 
   for (const meal of meals) {
     for (const ing of meal.ingredients) {
-      const item: ShoppingListItem = {
+      const baseItem: ShoppingListItem = {
         name: ing.name,
         normalizedName: ing.normalizedName,
         qty: ing.qty,
@@ -98,17 +109,33 @@ function llmResponseToPlanData(
         if (existing) {
           existing.qty += ing.qty;
           existing.cost += ing.cost;
-          existing.costMin += item.costMin;
-          existing.costMax += item.costMax;
-          existing.costLikely += item.costLikely;
+          existing.costMin += baseItem.costMin;
+          existing.costMax += baseItem.costMax;
+          existing.costLikely += baseItem.costLikely;
         } else {
-          pantryAccum.set(ing.normalizedName, { ...item });
+          pantryAccum.set(ing.normalizedName, { ...baseItem });
         }
       } else {
         const cat = categorizeItem(ing.name);
-        lists[cat].push(item);
+        const key = `${ing.normalizedName}|${(ing.unit || "").toLowerCase()}`;
+        const existing = shopAccum.get(key);
+        if (existing) {
+          existing.item.qty += ing.qty;
+          existing.item.cost += ing.cost;
+          existing.item.costMin = Math.round((existing.item.costMin + baseItem.costMin) * 100) / 100;
+          existing.item.costMax = Math.round((existing.item.costMax + baseItem.costMax) * 100) / 100;
+          existing.item.costLikely = Math.round((existing.item.costLikely + baseItem.costLikely) * 100) / 100;
+        } else {
+          shopAccum.set(key, { item: { ...baseItem }, cat });
+        }
       }
     }
+  }
+
+  // Push aggregated items into their categories with a refreshed display name.
+  for (const { item, cat } of shopAccum.values()) {
+    item.name = formatAggregatedName(item);
+    lists[cat].push(item);
   }
 
   const allShop = [...lists.produce, ...lists.dairy, ...lists.plantBased, ...lists.dryGoods, ...lists.spicesCondiments];
