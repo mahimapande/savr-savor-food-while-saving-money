@@ -153,7 +153,10 @@ function pluralizeIngredient(name: string): string {
   const parts = trimmed.split(/\s+/);
   const last = parts[parts.length - 1];
   const lastLower = last.toLowerCase();
-  if (MASS_NOUNS.has(lastLower) || MASS_NOUNS.has(lower)) return trimmed;
+  // Only treat as mass noun when the FULL phrase is a mass noun. A bare head
+  // like "pepper" is mass, but "bell pepper" is countable and should pluralize.
+  if (MASS_NOUNS.has(lower)) return trimmed;
+  if (parts.length === 1 && MASS_NOUNS.has(lastLower)) return trimmed;
   if (lastLower.endsWith("s")) return trimmed;
   let plural: string;
   if (/[^aeiou]y$/i.test(last)) {
@@ -168,6 +171,59 @@ function pluralizeIngredient(name: string): string {
     plural = last + "s";
   }
   parts[parts.length - 1] = plural;
+  return parts.join(" ");
+}
+
+// Inverse of pluralizeIngredient — singularize the head noun for qty <= 1
+// displays so we get "1 ice cube" instead of "1 ice cubes". Mass nouns and
+// invariant plurals are left alone.
+const SINGULAR_OVERRIDES: Record<string, string> = {
+  tomatoes: "tomato",
+  potatoes: "potato",
+  mangoes: "mango",
+  avocadoes: "avocado",
+  avocados: "avocado",
+  leaves: "leaf",
+  loaves: "loaf",
+  knives: "knife",
+  feet: "foot",
+  teeth: "tooth",
+  geese: "goose",
+  mice: "mouse",
+  people: "person",
+  children: "child",
+};
+function singularizeIngredient(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return trimmed;
+  const lower = trimmed.toLowerCase();
+  const parts = trimmed.split(/\s+/);
+  const last = parts[parts.length - 1];
+  const lastLower = last.toLowerCase();
+  if (MASS_NOUNS.has(lower)) return trimmed;
+  if (parts.length === 1 && MASS_NOUNS.has(lastLower)) return trimmed;
+  let singular = last;
+  if (SINGULAR_OVERRIDES[lastLower]) {
+    singular = SINGULAR_OVERRIDES[lastLower];
+  } else if (lastLower.endsWith("ies") && lastLower.length > 3) {
+    singular = last.slice(0, -3) + "y";
+  } else if (
+    lastLower.endsWith("ses") ||
+    lastLower.endsWith("xes") ||
+    lastLower.endsWith("zes") ||
+    lastLower.endsWith("ches") ||
+    lastLower.endsWith("shes")
+  ) {
+    singular = last.slice(0, -2);
+  } else if (
+    lastLower.endsWith("s") &&
+    !lastLower.endsWith("ss") &&
+    !lastLower.endsWith("us") &&
+    lastLower.length > 3
+  ) {
+    singular = last.slice(0, -1);
+  }
+  parts[parts.length - 1] = singular;
   return parts.join(" ");
 }
 
@@ -250,9 +306,15 @@ function consolidateItems(items: ShoppingListItem[]): ConsolidatedItem[] {
     } else {
       // No real unit (originally "each", a size descriptor like "large", or
       // converted-from-cups produce). Pluralize the base noun when qty > 1
-      // so we get "2 wraps", "3 eggs", "2 cucumbers" — but skip mass nouns.
+      // so we get "2 wraps", "3 eggs", "2 cucumbers". For qty ≤ 1, force
+      // the head noun to singular so we get "1 ice cube", not "1 ice cubes".
+      // Mass nouns are left alone in both directions.
       let base = g.base;
-      if (g.qty > 1) base = pluralizeIngredient(base);
+      if (g.qty > 1) {
+        base = pluralizeIngredient(base);
+      } else {
+        base = singularizeIngredient(base);
+      }
       displayName = `${qtyStr} ${base}`;
     }
     return {
