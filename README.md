@@ -80,6 +80,10 @@ Key evaluation checks:
 - Explain why meals were selected for each plan
 - Expand user testing and measure activation, budget fit, and retention
 
-## Demo
+## Product Walkthrough
 
-This is a beta capstone project. A live product demo and screenshots will be added here.
+Savr is a beta capstone project. Watch the product walkthrough to see the input flow, AI-generated meal plan, grocery list, budget summary, and validation approach.
+
+[Watch the Loom walkthrough](https://www.loom.com/share/b06681ed4098440895c6b4e222d329e5)
+
+> A public deployment is planned as a future iteration. The current repository includes the full application source, Supabase Edge Function, and setup instructions.
