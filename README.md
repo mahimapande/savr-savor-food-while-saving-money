@@ -1,4 +1,4 @@
-# Savr — AI Meal Planning for Smarter Grocery Spending
+# Savr — AI Meal Planning for Smarter Budgeting and Reducing Food Waste
 
 Savr is an AI-powered meal-planning assistant for budget-conscious home cooks. It turns a user’s budget, pantry inventory, dietary needs, and meal preferences into a personalized weekly meal plan, grocery list, and estimated grocery spend.
 
