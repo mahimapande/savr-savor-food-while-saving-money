@@ -430,11 +430,11 @@ serve(async (req) => {
         const outOfCredits = /insufficient_quota|credit_balance_exhausted/.test(attempt.error || "");
         code = outOfCredits ? "out_of_credits" : "rate_limited";
         message = outOfCredits
-          ? "The AI account is out of credits. Showing a basic plan instead."
-          : "The AI service is busy. Please try again in a moment.";
+          ? "the AI account is out of credits"
+          : "the AI service is busy, please try again in a moment";
       } else if (attempt.status === 401) {
         code = "invalid_key";
-        message = "The AI service key is invalid.";
+        message = "the AI service key is invalid";
       }
       return new Response(
         JSON.stringify({ error: message, code, upstreamStatus: attempt.status }),
