@@ -422,21 +422,23 @@ serve(async (req) => {
     let retried = false;
 
     if (!attempt.ok) {
+      // Return 200 with an error payload so the client handles it gracefully
+      // (falls back to the local generator) instead of surfacing a crash.
+      let message = `OpenAI error (${attempt.status})`;
+      let code = "upstream_error";
       if (attempt.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "OpenAI rate limit exceeded. Please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (attempt.status === 401) {
-        return new Response(
-          JSON.stringify({ error: "Invalid OpenAI API key. Please check the OPENAI_API_KEY secret." }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        const outOfCredits = /insufficient_quota|credit_balance_exhausted/.test(attempt.error || "");
+        code = outOfCredits ? "out_of_credits" : "rate_limited";
+        message = outOfCredits
+          ? "The AI account is out of credits. Showing a basic plan instead."
+          : "The AI service is busy. Please try again in a moment.";
+      } else if (attempt.status === 401) {
+        code = "invalid_key";
+        message = "The AI service key is invalid.";
       }
       return new Response(
-        JSON.stringify({ error: `OpenAI error (${attempt.status})` }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: message, code, upstreamStatus: attempt.status }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
