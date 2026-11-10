@@ -3,12 +3,7 @@
 Savr is an AI-powered meal-planning assistant for budget-conscious home cooks. It turns a user’s budget, pantry inventory, dietary needs, and meal preferences into a personalized weekly meal plan, grocery list, and estimated grocery spend.
 
 <img width="640" height="570" alt="image" src="https://github.com/user-attachments/assets/1ccc62a1-fe1f-462c-8410-2cc1539d52c4" />
-<br>
-*Figure 1: Weekly plan with budget summary
 <img width="645" height="503" alt="image" src="https://github.com/user-attachments/assets/c45a821a-2c49-4f2b-9782-5ea041b8bce5" />
-<br>
-*Figure 2: Shopping list and pantry view
-
 
 ## Product Walkthrough
 
