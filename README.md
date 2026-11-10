@@ -65,7 +65,11 @@ Key evaluation checks:
 | Pantry use | 24 | 27 | 89% |
 | Output validity | 26 | 27 | 96% |
 
-*The diet-safety failures were reviewed manually and grouped into named failure modes, which I'm addressing next.*
+*The diet-safety failures were reviewed manually and grouped into failure modes:
+diet drift (pescatarian plans returned as vegetarian), and restricted-ingredient
+leakage (a restricted item appeared in a recipe). Pantry-use failures traced to
+pantry blindness (pantry items duplicated into the shopping list). These drive
+the current roadmap.*
 
 ## Tech Stack
 
@@ -102,5 +106,7 @@ Key evaluation checks:
 - Add ingredient substitutions based on availability and budget
 - Explain why meals were selected for each plan
 - Expand user testing and measure activation, budget fit, and retention
+- Enforce dietary profile at generation time so dietary needs are honored
+- Reconcile the shopping list against the pantry to eliminate duplicate purchases
 
 > A public deployment is planned as a future iteration. The current repository includes the full application source, Supabase Edge Function, and setup instructions.
