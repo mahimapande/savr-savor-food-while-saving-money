@@ -102,11 +102,11 @@ the current roadmap.*
 
 ## Roadmap
 
+- Enforce dietary profile at generation time so dietary needs strictly are honored
+- Reconcile the shopping list against the pantry to eliminate duplicate purchases
 - Improve cost estimation with localized, real-time grocery pricing
 - Add ingredient substitutions based on availability and budget
 - Explain why meals were selected for each plan
 - Expand user testing and measure activation, budget fit, and retention
-- Enforce dietary profile at generation time so dietary needs are honored
-- Reconcile the shopping list against the pantry to eliminate duplicate purchases
 
 > A public deployment is planned as a future iteration. The current repository includes the full application source, Supabase Edge Function, and setup instructions.
