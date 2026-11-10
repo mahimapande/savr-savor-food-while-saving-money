@@ -65,6 +65,8 @@ Key evaluation checks:
 | Pantry use | 23 | 26 | 88% |
 | Output validity | 25 | 26 | 96% |
 
+*The diet-safety failures were reviewed manually and grouped into named failure modes, which I'm addressing next.*
+
 ## Tech Stack
 
 - **Frontend:** React, TypeScript, Vite, Tailwind CSS
