@@ -61,9 +61,9 @@ Key evaluation checks:
 |---|---|---|---|
 | Plan completeness | 27 | 27 | 100% |
 | Budget fit | 27 | 27 | 100% |
-| Diet safety | 22 | 26 | 85% |
-| Pantry use | 23 | 26 | 88% |
-| Output validity | 25 | 26 | 96% |
+| Diet safety | 23 | 27 | 85% |
+| Pantry use | 24 | 27 | 89% |
+| Output validity | 26 | 27 | 96% |
 
 *The diet-safety failures were reviewed manually and grouped into named failure modes, which I'm addressing next.*
 
