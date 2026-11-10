@@ -5,9 +5,11 @@ Savr is an AI-powered meal-planning assistant for budget-conscious home cooks. I
 <img width="681" height="572" alt="image" src="https://github.com/user-attachments/assets/2d82d520-8701-4e44-9a38-3b1dff27f6a7" />
 <img width="681" height="497" alt="image" src="https://github.com/user-attachments/assets/ad16a01d-1655-4ab3-80b5-e0eecc6699f0" />
 
+## Product Walkthrough
 
+Savr is a beta capstone project. Watch the product walkthrough to see the input flow, AI-generated meal plan, grocery list, budget summary, and validation approach.
 
-
+[Watch the Loom walkthrough](https://www.loom.com/share/b06681ed4098440895c6b4e222d329e5)
 
 ## The Problem
 
@@ -86,11 +88,5 @@ Key evaluation checks:
 - Add ingredient substitutions based on availability and budget
 - Explain why meals were selected for each plan
 - Expand user testing and measure activation, budget fit, and retention
-
-## Product Walkthrough
-
-Savr is a beta capstone project. Watch the product walkthrough to see the input flow, AI-generated meal plan, grocery list, budget summary, and validation approach.
-
-[Watch the Loom walkthrough](https://www.loom.com/share/b06681ed4098440895c6b4e222d329e5)
 
 > A public deployment is planned as a future iteration. The current repository includes the full application source, Supabase Edge Function, and setup instructions.
