@@ -45,6 +45,8 @@ Savr uses scenario-based testing across a 3 × 3 × 3 grid:
 - **Pantry levels:** almost empty, medium, and well-stocked
 - **Diet/allergy profiles:** vegetarian; vegetarian + nut-free; pescatarian + gluten-free
 
+<img width="341" height="137" alt="image" src="https://github.com/user-attachments/assets/2412cd87-688c-4bde-bcfc-522fd3904baa" />
+
 Key evaluation checks:
 
 - Plan completeness — all requested meal slots are present
