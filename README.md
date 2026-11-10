@@ -45,8 +45,6 @@ Savr uses scenario-based testing across a 3 × 3 × 3 grid:
 - **Pantry levels:** almost empty, medium, and well-stocked
 - **Diet/allergy profiles:** vegetarian; vegetarian + nut-free; pescatarian + gluten-free
 
-<img width="341" height="137" alt="image" src="https://github.com/user-attachments/assets/2412cd87-688c-4bde-bcfc-522fd3904baa" />
-
 Key evaluation checks:
 
 - Plan completeness — all requested meal slots are present
@@ -54,6 +52,18 @@ Key evaluation checks:
 - Diet safety — restricted ingredients are absent
 - Pantry utilization — pantry ingredients are reused in the plan
 - Output validity — generated JSON passes validation
+
+### Results
+
+27 of 27 scenarios run:
+
+| Check | Passed | Scored | Pass rate |
+|---|---|---|---|
+| Plan completeness | 27 | 27 | 100% |
+| Budget fit | 27 | 27 | 100% |
+| Diet safety | 22 | 26 | 85% |
+| Pantry use | 23 | 26 | 88% |
+| Output validity | 25 | 26 | 96% |
 
 ## Tech Stack
 
